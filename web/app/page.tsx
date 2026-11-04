@@ -17,7 +17,7 @@ export default function Home() {
           swing is yours to keep or hedged away. Then borrow against what you hold.
         </p>
         <div className="row">
-          <Link href="/start" className="btn">
+          <Link href="/try" className="btn">
             Try the demo
           </Link>
           <Link href="/vaults" className="btn secondary">

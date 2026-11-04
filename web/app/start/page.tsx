@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useAccount, useBalance, useBlock, useReadContract } from "wagmi";
-import { CURRENCIES, faucetAbi } from "@equora/shared";
+import { CURRENCIES, faucetAbi } from "@parallel/shared";
 import { deployment } from "@/lib/config";
 import { useCurrency } from "@/lib/currency";
 import { useBalances, useSteps } from "@/lib/hooks";

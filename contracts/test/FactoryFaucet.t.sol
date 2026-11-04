@@ -2,7 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {BaseTest} from "./Base.t.sol";
-import {EquoraVault} from "../src/EquoraVault.sol";
+import {ParallelVault} from "../src/ParallelVault.sol";
 import {Faucet} from "../src/Faucet.sol";
 import {MockToken} from "../src/tokens/MockToken.sol";
 import {IMintableToken} from "../src/interfaces/IMintableToken.sol";
@@ -10,7 +10,7 @@ import {IMintableToken} from "../src/interfaces/IMintableToken.sol";
 contract FactoryFaucetTest is BaseTest {
     function test_fullTwelveVaultLineup() public {
         // fixture already created 3 AUD vaults; add the remaining 9
-        _createVault(audd, AUD, "Equora AUD US Tech", "eqAUD-TECH", _basket(), false);
+        _createVault(audd, AUD, "Parallel AUD US Tech", "pmAUD-TECH", _basket(), false);
         MockToken[2] memory others = [eurc, inr];
         bytes32[2] memory ccys = [EUR, INR];
         for (uint256 i; i < 2; ++i) {
@@ -26,7 +26,7 @@ contract FactoryFaucetTest is BaseTest {
     }
 
     function test_inrHedgedVaultWorks() public {
-        EquoraVault v = _createVault(inr, INR, "Equora INR Hedged S&P 500", "eqINR-SPY-H", _index(), true);
+        ParallelVault v = _createVault(inr, INR, "Parallel INR Hedged S&P 500", "pmINR-SPY-H", _index(), true);
         inr.grantRole(inr.MINTER_ROLE(), admin);
         inr.mint(alice, 840_000e6); // ~US$10k
         _deposit(v, alice, 840_000e6);
@@ -36,24 +36,24 @@ contract FactoryFaucetTest is BaseTest {
     }
 
     function test_onlyAdminCreatesVaults() public {
-        EquoraVault.Config memory c = _index();
+        ParallelVault.Config memory c = _index();
         vm.prank(alice);
         vm.expectRevert();
         factory.createVault(audd, "x", "x", c, alice);
     }
 
     function test_badWeightsRevert() public {
-        EquoraVault.Config memory c = _index();
+        ParallelVault.Config memory c = _index();
         c.weightsBps[0] = 9_000;
         c.currency = AUD;
-        vm.expectRevert(EquoraVault.BadConfig.selector);
+        vm.expectRevert(ParallelVault.BadConfig.selector);
         factory.createVault(audd, "x", "x", c, admin);
     }
 
     function test_implementationCannotBeInitialised() public {
-        EquoraVault impl = EquoraVault(factory.implementation());
-        EquoraVault.Config memory c = _index();
-        EquoraVault.Deps memory d;
+        ParallelVault impl = ParallelVault(factory.implementation());
+        ParallelVault.Config memory c = _index();
+        ParallelVault.Deps memory d;
         vm.expectRevert();
         impl.initialize(audd, "x", "x", c, d, admin, keeper);
     }

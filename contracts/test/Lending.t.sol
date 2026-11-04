@@ -6,11 +6,11 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IMorpho, MarketParams, Id, Position} from "morpho-blue/interfaces/IMorpho.sol";
 import {MarketParamsLib} from "morpho-blue/libraries/MarketParamsLib.sol";
 
-import {EquoraRouter} from "../src/EquoraRouter.sol";
-import {EquoraVault} from "../src/EquoraVault.sol";
+import {ParallelRouter} from "../src/ParallelRouter.sol";
+import {ParallelVault} from "../src/ParallelVault.sol";
 import {OracleHub} from "../src/OracleHub.sol";
 import {KinkedIrm} from "../src/lending/KinkedIrm.sol";
-import {EquityOracleAdapter, VaultShareOracleAdapter, IEquoraVaultView} from "../src/lending/OracleAdapters.sol";
+import {EquityOracleAdapter, VaultShareOracleAdapter, IParallelVaultView} from "../src/lending/OracleAdapters.sol";
 import {IOracleHub} from "../src/interfaces/IOracleHub.sol";
 
 contract LendingTest is BaseTest {
@@ -23,7 +23,7 @@ contract LendingTest is BaseTest {
 
     IMorpho morpho;
     KinkedIrm irm;
-    EquoraRouter router;
+    ParallelRouter router;
     MarketParams spyMarket;
     MarketParams hedgedMarket;
     MarketParams unhedgedMarket;
@@ -37,7 +37,7 @@ contract LendingTest is BaseTest {
         morpho.enableLltv(LLTV_EQ);
         morpho.enableLltv(LLTV_HEDGED);
 
-        router = new EquoraRouter(morpho, exchange, IOracleHub(address(oracle)), admin);
+        router = new ParallelRouter(morpho, exchange, IOracleHub(address(oracle)), admin);
 
         spyMarket = MarketParams({
             loanToken: address(audd),
@@ -49,14 +49,14 @@ contract LendingTest is BaseTest {
         hedgedMarket = MarketParams({
             loanToken: address(audd),
             collateralToken: address(audHedgedIndex),
-            oracle: address(new VaultShareOracleAdapter(IEquoraVaultView(address(audHedgedIndex)))),
+            oracle: address(new VaultShareOracleAdapter(IParallelVaultView(address(audHedgedIndex)))),
             irm: address(irm),
             lltv: LLTV_HEDGED
         });
         unhedgedMarket = MarketParams({
             loanToken: address(audd),
             collateralToken: address(audUnhedgedIndex),
-            oracle: address(new VaultShareOracleAdapter(IEquoraVaultView(address(audUnhedgedIndex)))),
+            oracle: address(new VaultShareOracleAdapter(IParallelVaultView(address(audUnhedgedIndex)))),
             irm: address(irm),
             lltv: LLTV_EQ
         });
@@ -174,7 +174,7 @@ contract LendingTest is BaseTest {
 
         oracle.setMarketMode(OracleHub.MarketMode.FORCE_CLOSED);
         vm.prank(alice);
-        vm.expectRevert(EquoraRouter.MarketClosed.selector);
+        vm.expectRevert(ParallelRouter.MarketClosed.selector);
         router.supplyCollateralAndBorrow(hedgedMarket, 0, 1_000e6);
 
         // Documented limitation: Morpho Blue itself does not enforce market hours.

@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ["@equora/shared"],
+  transpilePackages: ["@parallel/shared"],
   webpack: (config) => {
     config.externals.push("pino-pretty", "lokijs", "encoding");
-    // Optional payment SDK modules pulled in transitively by wallet connectors; not used by Equora.
+    // Optional payment SDK modules pulled in transitively by wallet connectors; not used by Parallel Markets.
     config.resolve.alias = {
       ...config.resolve.alias,
       "@x402/core/client": false,

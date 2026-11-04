@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CURRENCIES, type Currency } from "@equora/shared";
+import { CURRENCIES, type Currency } from "@parallel/shared";
 import { useCurrency } from "@/lib/currency";
 import { useMarketOpen } from "@/lib/hooks";
 import { ConnectButton } from "./ConnectButton";
 
 const NAV = [
+  { href: "/try", label: "Try it" },
   { href: "/simulator", label: "Simulator" },
   { href: "/vaults", label: "Invest" },
   { href: "/portfolio", label: "Portfolio" },
@@ -23,9 +24,9 @@ export function Header() {
   return (
     <header className="header">
       <div className="wrap header-row">
-        <Link href="/" className="wordmark" aria-label="Equora home">
+        <Link href="/" className="wordmark" aria-label="Parallel Markets home">
           <span className="wordmark-mark" aria-hidden />
-          Equora
+          Parallel Markets
         </Link>
         <nav className="nav" aria-label="Main">
           {NAV.map((n) => (

@@ -65,7 +65,7 @@ export const deployments: Record<number, Deployment> = {
 
 export function getDeployment(chainId: number): Deployment {
   const d = deployments[chainId];
-  if (!d) throw new Error(`No Equora deployment for chain ${chainId}`);
+  if (!d) throw new Error(`No Parallel Markets deployment for chain ${chainId}`);
   return d;
 }
 

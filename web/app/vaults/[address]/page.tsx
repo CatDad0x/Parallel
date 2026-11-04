@@ -4,7 +4,7 @@ import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { useAccount, useReadContract, useReadContracts } from "wagmi";
 import { formatUnits, parseAbiItem, parseUnits, type Address } from "viem";
-import { vaultAbi, routerAbi, tokenAbi, exchangeAbi, CURRENCIES } from "@equora/shared";
+import { vaultAbi, routerAbi, tokenAbi, exchangeAbi, CURRENCIES } from "@parallel/shared";
 import { deployment } from "@/lib/config";
 import { useBalances, useEquityPrices, useFx, useMarketOpen, useNavHistory, useSteps, useVaultStats } from "@/lib/hooks";
 import { money, num, pct, signedMoney } from "@/lib/format";

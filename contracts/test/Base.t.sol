@@ -9,7 +9,7 @@ import {MockToken} from "../src/tokens/MockToken.sol";
 import {OracleHub} from "../src/OracleHub.sol";
 import {SimExchange} from "../src/SimExchange.sol";
 import {HedgeBook} from "../src/HedgeBook.sol";
-import {EquoraVault} from "../src/EquoraVault.sol";
+import {ParallelVault} from "../src/ParallelVault.sol";
 import {VaultFactory} from "../src/VaultFactory.sol";
 import {Faucet} from "../src/Faucet.sol";
 import {IOracleHub} from "../src/interfaces/IOracleHub.sol";
@@ -60,9 +60,9 @@ abstract contract BaseTest is Test {
     MockToken amzn;
     MockToken googl;
 
-    EquoraVault audHedgedIndex;
-    EquoraVault audUnhedgedIndex;
-    EquoraVault audHedgedBasket;
+    ParallelVault audHedgedIndex;
+    ParallelVault audUnhedgedIndex;
+    ParallelVault audHedgedBasket;
 
     function setUp() public virtual {
         vm.warp(1_780_000_000);
@@ -93,10 +93,10 @@ abstract contract BaseTest is Test {
 
         _setDefaultPrices();
 
-        EquoraVault impl = new EquoraVault();
+        ParallelVault impl = new ParallelVault();
         factory = new VaultFactory(
             address(impl),
-            EquoraVault.Deps({
+            ParallelVault.Deps({
                 oracle: IOracleHub(address(oracle)), exchange: exchange, hedgeBook: hedgeBook, treasury: treasury
             }),
             keeper,
@@ -104,9 +104,9 @@ abstract contract BaseTest is Test {
         );
         hedgeBook.grantRole(hedgeBook.REGISTRAR_ROLE(), address(factory));
 
-        audHedgedIndex = _createVault(audd, AUD, "Equora AUD Hedged S&P 500", "eqAUD-SPY-H", _index(), true);
-        audUnhedgedIndex = _createVault(audd, AUD, "Equora AUD S&P 500", "eqAUD-SPY", _index(), false);
-        audHedgedBasket = _createVault(audd, AUD, "Equora AUD Hedged US Tech", "eqAUD-TECH-H", _basket(), true);
+        audHedgedIndex = _createVault(audd, AUD, "Parallel AUD Hedged S&P 500", "pmAUD-SPY-H", _index(), true);
+        audUnhedgedIndex = _createVault(audd, AUD, "Parallel AUD S&P 500", "pmAUD-SPY", _index(), false);
+        audHedgedBasket = _createVault(audd, AUD, "Parallel AUD Hedged US Tech", "pmAUD-TECH-H", _basket(), true);
 
         audd.grantRole(audd.MINTER_ROLE(), admin);
         audd.mint(alice, 1_000_000e6);
@@ -157,7 +157,7 @@ abstract contract BaseTest is Test {
         _px(id, int64(int256(cur) * (10_000 + bps) / 10_000), -5);
     }
 
-    function _index() internal view returns (EquoraVault.Config memory c) {
+    function _index() internal view returns (ParallelVault.Config memory c) {
         address[] memory eq = new address[](1);
         eq[0] = address(spy);
         uint16[] memory w = new uint16[](1);
@@ -166,7 +166,7 @@ abstract contract BaseTest is Test {
         c.weightsBps = w;
     }
 
-    function _basket() internal view returns (EquoraVault.Config memory c) {
+    function _basket() internal view returns (ParallelVault.Config memory c) {
         address[] memory eq = new address[](5);
         (eq[0], eq[1], eq[2], eq[3], eq[4]) =
         (address(aapl), address(msft), address(nvda), address(amzn), address(googl));
@@ -183,32 +183,32 @@ abstract contract BaseTest is Test {
         bytes32 ccy,
         string memory name,
         string memory symbol,
-        EquoraVault.Config memory c,
+        ParallelVault.Config memory c,
         bool hedged
-    ) internal returns (EquoraVault v) {
+    ) internal returns (ParallelVault v) {
         c.currency = ccy;
         c.hedged = hedged;
         c.targetHedgeBps = 10_000;
         c.hedgeDriftBps = 300;
         c.cashBufferBps = 300;
         c.mgmtFeeBps = 50;
-        v = EquoraVault(factory.createVault(IERC20(address(asset)), name, symbol, c, admin));
+        v = ParallelVault(factory.createVault(IERC20(address(asset)), name, symbol, c, admin));
     }
 
-    function _deposit(EquoraVault v, address who, uint256 assets) internal returns (uint256 shares) {
+    function _deposit(ParallelVault v, address who, uint256 assets) internal returns (uint256 shares) {
         vm.startPrank(who);
         IERC20(v.asset()).approve(address(v), assets);
         shares = v.deposit(assets, who);
         vm.stopPrank();
     }
 
-    function _redeemAll(EquoraVault v, address who) internal returns (uint256 assets) {
+    function _redeemAll(ParallelVault v, address who) internal returns (uint256 assets) {
         uint256 bal = v.balanceOf(who);
         vm.prank(who);
         assets = v.redeem(bal, who, who);
     }
 
-    function _assetValue(EquoraVault v, address who) internal view returns (uint256) {
+    function _assetValue(ParallelVault v, address who) internal view returns (uint256) {
         return v.convertToAssets(v.balanceOf(who));
     }
 }

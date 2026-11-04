@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount, useReadContracts } from "wagmi";
-import { morphoAbi, routerAbi, marketParams, type MarketInfo } from "@equora/shared";
+import { morphoAbi, routerAbi, marketParams, type MarketInfo } from "@parallel/shared";
 import { deployment } from "./config";
 
 const YEAR = 365 * 24 * 3600;

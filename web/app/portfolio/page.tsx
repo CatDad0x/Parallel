@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAccount, usePublicClient, useReadContracts } from "wagmi";
 import { decodeEventLog, parseAbiItem, type Address, type Hex } from "viem";
-import { morphoAbi, routerAbi, marketParams, CURRENCIES, type VaultInfo } from "@equora/shared";
+import { morphoAbi, routerAbi, marketParams, CURRENCIES, type VaultInfo } from "@parallel/shared";
 import { deployment } from "@/lib/config";
 import { useCurrency } from "@/lib/currency";
 import { useFx, useVaultStats } from "@/lib/hooks";

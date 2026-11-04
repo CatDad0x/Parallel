@@ -1,4 +1,4 @@
-# Equora
+# Parallel Markets
 
 **Invest in US shares with your own currency's stablecoin, hedged or unhedged, then borrow against your position.**
 
@@ -9,7 +9,7 @@ Deposit AUD, EUR or INR stablecoins. Invest in an S&P 500 index or a US tech bas
 ## What's in the repo
 
 ```
-equora/
+parallel-markets/
 ├─ contracts/        Solidity (Foundry): vaults, oracle, hedge book, exchange, router, deploy script
 ├─ keeper/           Bot: prices, queue settlement, rebalancing, hedge rolls, liquidations
 ├─ web/              Next.js app: simulator, onboarding, vaults, portfolio, borrow, lend, demo controls
@@ -54,7 +54,7 @@ Note the block number in the output and use it as the keeper's `DEPLOY_BLOCK`.
 
 ### 3. Run the keeper
 Host it on Railway, Render or any small server, running 24/7.
-- Root directory: repository root. Start command: `pnpm --filter @equora/keeper start`
+- Root directory: repository root. Start command: `pnpm --filter @parallel/keeper start`
 - Env: copy `keeper/.env.example` (`CHAIN_ID=84532`, `RPC_URL`, `KEEPER_PRIVATE_KEY`, `DEPLOY_BLOCK`)
 - It serves health JSON on `HEALTH_PORT`. Expose it so the Demo controls page can show keeper status.
 

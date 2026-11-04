@@ -5,7 +5,7 @@ import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
 import {IPyth} from "../interfaces/IPyth.sol";
 
 /// @title DemoPyth
-/// @notice TESTNET ONLY. A Pyth-compatible price store whose prices are pushed by the Equora
+/// @notice TESTNET ONLY. A Pyth-compatible price store whose prices are pushed by the Parallel Markets
 /// keeper (simulated live prices). Used when the demo runs outside US market hours or without a
 /// Pyth API key, so the full journey works 24/7. The UI labels these prices as simulated.
 contract DemoPyth is IPyth, AccessControl {

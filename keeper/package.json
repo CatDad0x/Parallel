@@ -1,5 +1,5 @@
 {
-  "name": "@equora/keeper",
+  "name": "@parallel/keeper",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@equora/shared": "workspace:*",
+    "@parallel/shared": "workspace:*",
     "viem": "2.57.5"
   },
   "devDependencies": {

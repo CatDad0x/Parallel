@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
-import { oracleHubAbi, vaultAbi, CURRENCIES } from "@equora/shared";
+import { oracleHubAbi, vaultAbi, CURRENCIES } from "@parallel/shared";
 import { deployment, KEEPER_URL } from "@/lib/config";
 import { useEquityPrices, useFx, useMarketOpen, useSteps, useVaultStats } from "@/lib/hooks";
 import { useMarkets } from "@/lib/lending";

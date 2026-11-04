@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { parseAbiItem, type Address } from "viem";
-import { vaultAbi } from "@equora/shared";
+import { vaultAbi } from "@parallel/shared";
 import { useSteps } from "@/lib/hooks";
 
 const depReq = parseAbiItem("event DepositRequested(uint256 indexed id, address indexed sender, address indexed receiver, uint256 assets)");

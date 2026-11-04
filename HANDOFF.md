@@ -8,7 +8,7 @@ This summarises the planning conversation that produced this repo, so work can c
 - Product: deposit a local-currency stablecoin (AUD, EUR, INR; deliberately no USD), invest in US equities (S&P 500 or a 5-stock US tech basket), hedged or unhedged against USD, and borrow against the position.
 
 ## Decisions made (with the reasons)
-- **Name: Equora.** Checked: no finance/crypto conflicts, only a Saudi horse-riding app. "Parallel Markets" was rejected because Parallel Markets, Parallel Protocol and Parallel Finance already exist. Tagline idea: "equity exposure and liquidity, side by side".
+- **Name: Parallel Markets** (renamed from "Equora" on 3 Nov 2026 in Claude Code). Akash disliked "Equora" and his friends found it confusing, so he chose Parallel Markets for being plain English. **Known risk:** the earlier chat had rejected this name because Parallel Markets, Parallel Protocol and Parallel Finance already exist. Akash chose to proceed anyway for the testnet demo, with the overlap not re-checked. Revisit before anything public or commercial. Code names: `ParallelVault`, `ParallelRouter`, `@parallel/*` packages, vault symbols `pmAUD-SPY` etc. The GitHub repo and local folder are still called Equora.
 - **Testnet only (Base Sepolia).** A live product with real money would be a managed investment scheme and lending would need an AFSL in Australia, so going live waits for a licensed partner.
 - **Chain: Base.** Akash chose it.
 - **12 vaults** = 3 currencies × (index, basket) × (hedged, unhedged), from one factory.
@@ -34,3 +34,11 @@ A reviewer flagged 10 issues: hedge P&L could be erased on adjust, a 3% cash buf
 
 ## Rules for working with Akash's keys
 Never ask him to paste a private key into chat. Keys go in `contracts/.env`, `keeper/.env` and Vercel env vars, all gitignored. Stop and ask before any step that spends testnet funds or deploys.
+
+## Update, 4 Nov 2026 (Claude Code session)
+- **Renamed** the project to Parallel Markets in code, docs and UI (see Decisions). Local folder and GitHub repo are still `Equora`. Nothing is committed yet.
+- **Product direction changed.** Akash defined two products: `pSPY` / `pUSTech` invest (hedged only) and borrow/lend against them. All decisions, the full user journeys and what is still open are in **SPEC.md §14**. The code still implements v0.3 (12 vaults, queue-based closed-market exits) and has not been updated.
+- **UI:** the v0.3 web app and an experimental `/try` flow (`web/app/try/page.tsx`) were judged too complicated. Akash prototyped a nicer look in ChatGPT (`~/Downloads/parallel-markets-ui/`: static HTML, fake data, not wired to contracts) and is taking a design brief to Claude Design. That prototype still has too many steps and too much text, and leads with invented "+12.84% return" figures; the agreed fix is product-first Invest cards with a currency-protection scenario instead.
+- **Local dev notes:** `pnpm` is installed at `~/.npm-global/bin` (add it and `~/.foundry/bin` to `PATH`). `web/.env.local` was created with anvil's public test keys for local use only. Local run: anvil, deploy with `KEEPER_ADDRESS` set to anvil account #1 (the keeper's default key), then the keeper and web app.
+- **Next:** back-test LTVs, then build the v0.4 contract changes (6 vaults, simulated DEX with adjustable drift, deviation guard, new markets), wire the new UI, then deploy to Base Sepolia. The wallet and funding steps for deployment are still pending.
+

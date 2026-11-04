@@ -1,8 +1,8 @@
-# Equora — MVP Build Spec
+# Parallel Markets — MVP Build Spec
 
 **Local-currency access to US equities, with optional FX hedging and borrowing against your position.**
 
-Status: v0.3 (all build phases implemented and tested locally; awaiting Base Sepolia deployment) · Target: working demo on **Base Sepolia** · Audience: AUDD / AUDM teams, investors, partners
+Status: v0.3 implemented and tested locally; **v0.4 product direction agreed 4 Nov 2026, not yet built (see §14)**; awaiting Base Sepolia deployment · Target: working demo on **Base Sepolia** · Audience: AUDD / AUDM teams, investors, partners
 
 ---
 
@@ -32,6 +32,8 @@ A fully working, publicly accessible **testnet demo** that shows the complete us
 
 ## 1. Decisions locked in
 
+> **v0.4 changes** to the table below (hedged only, 6 vaults, new exit mechanism and lending scope) are in §14.
+
 | Area | Decision |
 |---|---|
 | Chain | Base Sepolia |
@@ -53,11 +55,11 @@ A fully working, publicly accessible **testnet demo** that shows the complete us
                  │  Onboard/Faucet · Vaults · Portfolio · Borrow · Lend · Simulator · Admin       │
                  └──────────────┬──────────────────────────────┬─────────────────────────────────┘
                                 │                              │
-                         EquoraRouter                    Indexer (Ponder)
+                         ParallelRouter                    Indexer (Ponder)
                                 │
    ┌───────────────┬────────────┼──────────────┬──────────────────┬──────────────────┐
    │               │            │              │                  │                  │
- Faucet      VaultFactory   EquoraVault ×12   HedgeBook      SimExchange       Morpho Blue
+ Faucet      VaultFactory   ParallelVault ×12   HedgeBook      SimExchange       Morpho Blue
    │               │            │              │                  │           (markets + IRM)
    │               └────────────┴──────┬───────┴──────────────────┘                  │
    │                                   │                                              │
@@ -127,7 +129,7 @@ State per vault: `notionalUsd` (N), `strike` (K, USD per local), `lastAccrual`. 
 - **Funding losses:** before a loss is settled, the vault sells equities pro-rata until cash covers it (`_ensureCash`). The 3% buffer is a liquidity cushion, not the loss-funding mechanism. Tested at AUD −30%.
 - **Market closed:** no settlement happens (rebalance and roll require an open market). Unrealised MTM stays in NAV until the next open.
 
-### 4.6 `EquoraVault` (ERC-4626, ×12)
+### 4.6 `ParallelVault` (ERC-4626, ×12)
 One contract, configured at init:
 
 ```solidity
@@ -177,11 +179,11 @@ There is no fee deduction in NAV. The management fee is charged **only** by dilu
 **Inflation-attack protection:** ERC-4626 virtual shares (decimals offset 12). This addresses the first-depositor donation attack on share pricing.
 
 ### 4.7 `VaultFactory`
-- **Proxy pattern:** EIP-1167 minimal clones of a single `EquoraVault` implementation. Clones are **not upgradeable**, so there is no upgrade authority. The implementation's constructor disables initialisers, and each clone is initialised atomically in `createVault`.
+- **Proxy pattern:** EIP-1167 minimal clones of a single `ParallelVault` implementation. Clones are **not upgradeable**, so there is no upgrade authority. The implementation's constructor disables initialisers, and each clone is initialised atomically in `createVault`.
 - `createVault` (ADMIN only) initialises the clone, registers it with the HedgeBook (the factory holds `REGISTRAR_ROLE`) and grants the keeper role.
 - `vaults()` / `vaultsByCurrency()` for the frontend.
 
-### 4.8 `EquoraRouter`
+### 4.8 `ParallelRouter`
 The UX layer and the single entry point the frontend uses.
 
 - `depositWith(vault, token, amount)`: accepts any token in the vault's currency group (e.g. mAUDM → swaps to mAUDD at par → deposits).
@@ -210,6 +212,8 @@ Morpho Blue expects `price()` = the price of **one whole collateral token in who
 - IRM: deploy a simple kinked IRM (`base 2%`, `slope1` to 8% at 80% utilisation, `slope2` steep above that). The AdaptiveCurveIRM is acceptable if already deployed.
 
 ### 5.2 Initial markets
+**Superseded by §14.3–14.4:** same-currency markets per collateral, with LTVs to be back-tested. The table below is the v0.3 build.
+
 **All parameters are illustrative, pending proper risk calibration.** Morpho market parameters, including LLTV, are immutable once a market is created, so these are chosen deliberately for the demo.
 
 | Loan | Collateral | Max opening LTV (router/UI) | Liquidation LTV (LLTV) |
@@ -226,7 +230,7 @@ Morpho Blue expects `price()` = the price of **one whole collateral token in who
 The deployer seeds each market's supply side, and the faucet lets demo users become lenders too. The Lend screen shows supply APY and utilisation.
 
 ### 5.4 Market-hours restriction: demo position
-**Decision:** the demo uses standard Morpho Blue markets. The borrowing restriction during US market closures is enforced **only by the Equora interface and router**, and the UI says so plainly ("Borrowing paused while US markets are closed — interface-level control"). Anyone calling Morpho directly can still borrow. It is never presented as protocol-level protection.
+**Decision:** the demo uses standard Morpho Blue markets. The borrowing restriction during US market closures is enforced **only by the Parallel Markets interface and router**, and the UI says so plainly ("Borrowing paused while US markets are closed — interface-level control"). Anyone calling Morpho directly can still borrow. It is never presented as protocol-level protection.
 
 Why not enforce it in the oracle: an oracle that reverts while closed would also block liquidations and collateral withdrawals. A production version needs a lending implementation (or market wrapper with exclusive access) that enforces the restriction for borrows only.
 
@@ -263,7 +267,7 @@ Implications the demo makes visible:
 ---
 
 ## 7. Indexer (`/indexer`, Ponder)
-Indexes `NavSnapshot`, deposits/redeems, queue events, hedge adjustments and Morpho events for Equora markets. It exposes GraphQL for portfolio history, NAV charts and the activity feed.
+Indexes `NavSnapshot`, deposits/redeems, queue events, hedge adjustments and Morpho events for Parallel Markets markets. It exposes GraphQL for portfolio history, NAV charts and the activity feed.
 
 ---
 
@@ -296,7 +300,7 @@ Indexes `NavSnapshot`, deposits/redeems, queue events, hedge adjustments and Mor
 ## 9. Repository layout
 
 ```
-equora/
+parallel-markets/
 ├─ contracts/        Foundry: src/, test/, script/ (Deploy.s.sol, Seed.s.sol)
 ├─ keeper/           TS service
 ├─ indexer/          Ponder
@@ -313,7 +317,7 @@ pnpm workspaces. Addresses are written to `packages/shared/deployments/base-sepo
 
 ### Phase 1: Core contracts (built in chat) — DONE
 Status: implemented in `contracts/`, 66 tests passing (unit + fuzz), ~91% line coverage on core contracts.
-- Mock tokens, Faucet, OracleHub (with a Pyth mock for tests), SimExchange, HedgeBook, EquoraVault, VaultFactory.
+- Mock tokens, Faucet, OracleHub (with a Pyth mock for tests), SimExchange, HedgeBook, ParallelVault, VaultFactory.
 - **Accept:**
   - Fuzz tests show NAV maths correct within 1 wei-scale tolerance.
   - Hedge MTM matches the closed-form formula.
@@ -324,7 +328,7 @@ Status: implemented in `contracts/`, 66 tests passing (unit + fuzz), ~91% line c
 
 ### Phase 2: Lending integration
 - Vault hardening: tracked internal balances for cash and equities (ignore donations).
-- Oracle adapters, Morpho deployment/config script, IRM, EquoraRouter with borrow gate.
+- Oracle adapters, Morpho deployment/config script, IRM, ParallelRouter with borrow gate.
 - **Accept:** a fork/integration test runs deposit → borrow → price shock → liquidate end to end. With tracked internal balances in place, a direct token donation to the vault does not move the vault-share oracle price.
 
 ### Phase 3: Deploy and seed on Base Sepolia
@@ -387,6 +391,103 @@ Status: implemented in `contracts/`, 66 tests passing (unit + fuzz), ~91% line c
 6. **Access:** injected wallets, Coinbase Smart Wallet (passkey) and, when `NEXT_PUBLIC_PRIVY_APP_ID` is set, Privy email sign-in.
 7. **Keeper lanes:** prices and liquidations run in a fast lane, separate from queue settlement, rebalancing, rolls and pokes (nonce manager). Locally, a shock led to a liquidation in about 7 seconds.
 8. **Router drops queued-deposit helper:** queued deposits call the vault directly so the user owns (and can cancel) the request.
+
+**v0.4:** product direction agreed with Akash on 4 Nov 2026. **Design only: none of this is built yet.** Details in §14.
+1. Two products with plain names: `pSPY` (S&P 500) and `pUSTech` (5-stock basket). Hedged only; the unhedged option leaves the product and stays as a simulator comparison.
+2. Vault count drops from 12 to 6 (3 currencies × 2 strategies).
+3. Exits execute at the onchain (DEX) price, 24/7, with tiered deviation warnings. The queue stays as the "wait until the market opens" path.
+4. Share price and loan collateral value come from the reference index price; the DEX price is only a guard.
+5. Lending: same-currency loans only, a separate market per collateral, rate rising with usage, warnings then liquidation. Cross-currency borrowing is deferred.
+6. LTVs to be back-tested before they are fixed (Morpho LLTV is immutable once a market exists).
+
+## 14. v0.4 product direction (agreed, not yet built)
+
+Where this differs from §0–§13, **this section wins**. The code in the repo still implements v0.3 (12 vaults, queue-based closed-market exits, v0.3 LTVs in §5.2).
+
+### 14.1 Product 1: Invest
+**Journey:** the user deposits AUD, EUR or INR stablecoin, chooses the S&P 500 (`pSPY`) or US tech (`pUSTech`), and enters an amount. The app buys the exposure onchain and issues a share token (ERC-20, delivered through the ERC-4626 vault). The user can redeem for their own currency at any time.
+
+- **Hedged only.** Every product carries the FX hedge (still a simulation, §0). Unhedged is shown only as a comparison in the simulator, not as something to buy.
+- **Six real tokens, two products in the UI.** One vault per currency and strategy (for example `pSPY-AUD`), shown to users as "pSPY" with the currency picked at deposit. Token symbols in the code (`pmAUD-SPY-H` and so on) will be renamed to match.
+- **Fees:** annual management fee on the shares (dilution, as built) plus entry and exit trading cost.
+
+### 14.2 Exits, pricing and warnings
+- **Execution.** A redemption sells the vault's tokenized SPY on a DEX at the onchain price, 24/7. There is no queue and no cash buffer to run dry.
+- **Pricing source.** The share price (NAV) and loan collateral value use the **reference index price**. The DEX price is a guard only, so a thin pool cannot move NAV or trigger liquidations.
+- **Deviation warnings (DEX below index):** under 1% is normal. From 1% to 3% shows an amber warning with a "wait until the market opens" option. Above 3% is red and requires an explicit confirm. At large deviations, risky actions (borrowing, liquidation) pause. Thresholds are fixed, not admin-adjustable.
+- **Who bears the gap:** the person redeeming gets the actual DEX execution price (existing `min*` limits apply). The vault does not absorb it.
+- **"Wait until the market opens"** reuses the existing queue (§4.6).
+- **Demo DEX.** There is no real tokenized SPY or DEX liquidity on Base Sepolia. Extend `SimExchange` so its price can drift from the index, and add a Demo controls slider to show the warning live.
+
+### 14.3 Product 2: Borrow and lend
+- **Borrow:** deposit `pSPY` or `pUSTech`, borrow the same currency (AUD against AUD tokens, and so on). Interest is charged and the loan can be repaid at any time.
+- **Same-currency only for now (6 markets).** Cross-currency borrowing is deferred: it adds hidden FX risk on the loan (the vault hedge covers currency against USD only), needs 18 markets, and fragments lender liquidity. When added: lower limits and a clear "currency risk on your loan" warning.
+- **Lend:** deposit AUD, EUR or INR and earn interest from borrowers. A separate Morpho market per collateral. The UI shows "Safer" (lent against `pSPY`) and "Higher yield" (lent against `pUSTech`), with one rate each.
+- **Rate:** rises with usage (existing `KinkedIrm`).
+- **Liquidation:** safety warnings first as a loan worsens, then standard liquidation by the keeper with a small bonus.
+- **Revenue:** the annual fee on shares plus a slice of borrower interest through Morpho Blue's per-market fee setting (percentage not decided).
+
+### 14.4 LTV (provisional, to be back-tested)
+Separate limits for index and tech, because tech is far more volatile. Provisional start:
+
+| Collateral | Max opening LTV | Liquidation LTV |
+|---|---|---|
+| `pSPY` | about 50% | about 65% |
+| `pUSTech` | about 40% | about 55% |
+
+Back-test historical index and tech-basket drawdowns, weekend gaps and liquidation delay, with the DEX discount from §14.2 included, before fixing anything. Morpho market parameters, including LLTV, are immutable. The §5.2 figures (45–55% opening, 62.5–77% liquidation) were v0.3 illustrations and will be replaced.
+
+### 14.5 Still open
+- Final LTV and liquidation numbers (§14.4); the management-fee and interest-spread percentages.
+- `mAUDC` naming (§12 item 4).
+- The name "Parallel Markets" overlaps with existing finance companies (see HANDOFF.md).
+- A real FX hedge counterparty, which any launch beyond testnet would need.
+- Which tokenized SPY, if any, exists on Base with real DEX liquidity.
+- Licensing: going live needs a licensed partner (HANDOFF.md).
+- UI: a redesign is in progress outside this repo (reference prototype and Claude Design brief); the web app in `web/` still has the v0.3 screens plus an experimental `/try` flow.
+
+### 14.6 User journeys
+
+**0. First visit.** Landing page (one promise plus the currency slider: A$10,000 becomes A$9,091 unprotected vs A$10,000 protected) → "Try the demo" → one-button sign-in (email or passkey, no wallet needed) → test money added automatically → Home with three actions: Invest, Borrow, Earn.
+
+**1. Invest.**
+1. Pick the product: S&P 500 (`pSPY`) or US tech (`pUSTech`). Each card shows a one-line description and the benefit as a scenario ("If the A$ rises 10%: A$9,091 without protection vs A$10,000 with it").
+2. Currency: defaults to the home currency (AUD, EUR or INR); the user pays with their stablecoin in that currency.
+3. Amount: one box in their own currency, quick amounts, a live "You'll own about…" line and the costs.
+4. Confirm: you pay, trading cost, annual fee, what you receive; one risk sentence (share prices can fall, currency protection reduces but does not remove currency risk, costs apply).
+5. Behind the scenes: the app converts the stablecoin, buys the tokenized equity onchain, sizes the FX hedge and mints `pSPY` / `pUSTech` to the user.
+6. Result: "You now own about A$X of the S&P 500, protected from currency swings" → Borrow against it / See portfolio / Invest more.
+
+**2. Hold and track.** Portfolio shows value in the user's own currency, with the gain or loss split into share performance, currency effect, hedge result and fees.
+
+**3. Sell (redeem).**
+1. Portfolio → Sell → amount or "all"; paid in the product's currency stablecoin. Shares locked as loan collateral cannot be sold until the loan is repaid.
+2. Preview: what the user receives at the onchain (DEX) price, and the gap versus the index price.
+3. Normal (gap under 1%): confirm and sell. Amber (1–3%): "The price is X% below the index. Sell now, or wait until US markets open" (waiting uses the queue). Red (over 3%): the user must explicitly confirm they accept receiving about X% less.
+4. Result: stablecoin arrives; the position updates.
+
+**4. Borrow.**
+1. Pick an investment to borrow against (`pSPY` or `pUSTech`).
+2. How much: one slider, in the same currency as the investment (same-currency loans only, §14.3).
+3. Shown: the interest rate (variable, rising with usage), the maximum loan, a loan-safety meter, and one plain line on the main risk ("If your shares fall too far, some may be sold to repay the loan").
+4. Confirm → the shares go in as collateral and the stablecoin loan is paid out.
+5. Result: a loan card with amount borrowed, interest, and safety.
+
+**5. Manage and wind down the loan.** Repay part or all at any time, add collateral, or withdraw collateral while the loan stays safe. Interest accrues continuously. Once repaid, the shares unlock and can be held or sold.
+
+**6. The loan gets risky.** The safety meter turns amber and the app shows warnings as the loan approaches the limit. At the liquidation limit the keeper sells part of the collateral to repay part of the loan (small bonus to the keeper); the user keeps the rest.
+
+**7. Lend (Earn).**
+1. Pick a currency, then "Safer" (lent against `pSPY`) or "Higher yield" (lent against `pUSTech`); each shows one variable rate and how much is currently lent out.
+2. Enter an amount, with one risk sentence (earnings come from borrower interest; withdrawals depend on available funds; in extreme market falls lenders can lose money).
+3. Deposit → balance shown with interest accruing.
+4. Withdraw any time up to the funds currently available; if usage is very high the user may have to wait.
+
+**8. Demo-only controls** (for the AUDD / AUDM teams, tucked under "Advanced"): shock prices, open and close the market, the DEX-dislocation slider (§14.2), keeper status, and the currency explorer.
+
+**Edge states to design:** prices still loading or stale (fail closed, "prices are updating"), US market closed, test-money request failed, not enough balance, DEX gap warnings, a repay or sell blocked by an active loan.
+
+**Open (not decided):** whether new borrowing is still paused while US markets are closed. v0.3 pauses it at interface level (§5.4); with 24/7 DEX exits this needs a decision. Also the warning levels for loan safety, and whether users get alerts (email or push) before a liquidation.
 
 ## Appendix A: Feed config (fill during Phase 3)
 

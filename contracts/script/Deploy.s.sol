@@ -10,19 +10,19 @@ import {MockToken} from "../src/tokens/MockToken.sol";
 import {OracleHub} from "../src/OracleHub.sol";
 import {SimExchange} from "../src/SimExchange.sol";
 import {HedgeBook} from "../src/HedgeBook.sol";
-import {EquoraVault} from "../src/EquoraVault.sol";
+import {ParallelVault} from "../src/ParallelVault.sol";
 import {VaultFactory} from "../src/VaultFactory.sol";
 import {Faucet} from "../src/Faucet.sol";
-import {EquoraRouter} from "../src/EquoraRouter.sol";
+import {ParallelRouter} from "../src/ParallelRouter.sol";
 import {KinkedIrm} from "../src/lending/KinkedIrm.sol";
-import {EquityOracleAdapter, VaultShareOracleAdapter, IEquoraVaultView} from "../src/lending/OracleAdapters.sol";
+import {EquityOracleAdapter, VaultShareOracleAdapter, IParallelVaultView} from "../src/lending/OracleAdapters.sol";
 import {DemoPyth} from "../src/testnet/DemoPyth.sol";
 import {IPyth} from "../src/interfaces/IPyth.sol";
 import {IOracleHub} from "../src/interfaces/IOracleHub.sol";
 import {IMintableToken} from "../src/interfaces/IMintableToken.sol";
 
 /// @title Deploy
-/// @notice Deploys and seeds the full Equora demo:
+/// @notice Deploys and seeds the full Parallel Markets demo:
 ///   tokens, oracle, exchange, hedge book, 12 vaults, Morpho Blue + IRM + 5 markets, router, faucet.
 ///
 /// Env:
@@ -52,7 +52,7 @@ contract Deploy is Script {
         VaultFactory factory;
         IMorpho morpho;
         KinkedIrm irm;
-        EquoraRouter router;
+        ParallelRouter router;
     }
 
     struct VaultInfo {
@@ -118,10 +118,10 @@ contract Deploy is Script {
         c.hedgeBook = new HedgeBook(IOracleHub(address(c.oracle)), c.admin);
         c.faucet = new Faucet(c.admin);
 
-        EquoraVault impl = new EquoraVault();
+        ParallelVault impl = new ParallelVault();
         c.factory = new VaultFactory(
             address(impl),
-            EquoraVault.Deps({
+            ParallelVault.Deps({
                 oracle: IOracleHub(address(c.oracle)),
                 exchange: c.exchange,
                 hedgeBook: c.hedgeBook,
@@ -212,7 +212,7 @@ contract Deploy is Script {
     }
 
     function _feedId(string memory key) internal view returns (bytes32) {
-        if (c.demoPyth) return keccak256(bytes(string.concat("equora.demo.", key)));
+        if (c.demoPyth) return keccak256(bytes(string.concat("parallel.demo.", key)));
         return vm.envBytes32(string.concat("FEED_", key));
     }
 
@@ -237,7 +237,7 @@ contract Deploy is Script {
     }
 
     function _vault(MockToken asset, bytes32 ccy, string memory code, bool index, bool hedged) internal {
-        EquoraVault.Config memory cfg;
+        ParallelVault.Config memory cfg;
         if (index) {
             cfg.equities = new address[](1);
             cfg.equities[0] = address(equities[0]);
@@ -259,8 +259,8 @@ contract Deploy is Script {
         cfg.mgmtFeeBps = 50;
 
         string memory strat = index ? "S&P 500" : "US Tech";
-        string memory name = string.concat("Equora ", code, hedged ? " Hedged " : " ", strat);
-        string memory symbol = string.concat("eq", code, index ? "-SPY" : "-TECH", hedged ? "-H" : "");
+        string memory name = string.concat("Parallel ", code, hedged ? " Hedged " : " ", strat);
+        string memory symbol = string.concat("pm", code, index ? "-SPY" : "-TECH", hedged ? "-H" : "");
         address v = c.factory.createVault(IERC20(address(asset)), name, symbol, cfg, c.admin);
         vaultInfos.push(VaultInfo(v, name, symbol, ccy, index ? "index" : "basket", hedged));
     }
@@ -279,7 +279,7 @@ contract Deploy is Script {
         }
         c.irm = new KinkedIrm(0.02e18, 0.08e18, 0.6e18, 0.8e18);
         if (!c.morpho.isIrmEnabled(address(c.irm))) c.morpho.enableIrm(address(c.irm));
-        c.router = new EquoraRouter(c.morpho, c.exchange, IOracleHub(address(c.oracle)), c.admin);
+        c.router = new ParallelRouter(c.morpho, c.exchange, IOracleHub(address(c.oracle)), c.admin);
 
         // Illustrative parameters, pending risk calibration. LLTV is immutable per market.
         _equityMarket(stables[0], AUD, "mAUDD / mSPY");
@@ -298,7 +298,7 @@ contract Deploy is Script {
     function _vaultMarket(address vault, MockToken loan, uint256 lltv, uint256 openLtv, string memory label)
         internal
     {
-        address oracle = address(new VaultShareOracleAdapter(IEquoraVaultView(vault)));
+        address oracle = address(new VaultShareOracleAdapter(IParallelVaultView(vault)));
         _market(MarketParams(address(loan), vault, oracle, address(c.irm), lltv), openLtv, label);
     }
 
@@ -324,7 +324,7 @@ contract Deploy is Script {
     function _seed() internal {
         // Seed deposit in every vault (A$/€ 1,000 or ₹ 80,000) so share prices are established.
         for (uint256 i; i < vaultInfos.length; ++i) {
-            EquoraVault v = EquoraVault(vaultInfos[i].vault);
+            ParallelVault v = ParallelVault(vaultInfos[i].vault);
             MockToken a = MockToken(v.asset());
             uint256 amt = vaultInfos[i].currency == INR ? 80_000e6 : 1_000e6;
             a.mint(c.admin, amt);

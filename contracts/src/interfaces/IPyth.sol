@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-/// @notice Minimal subset of the Pyth pull-oracle interface used by Equora.
+/// @notice Minimal subset of the Pyth pull-oracle interface used by Parallel Markets.
 /// Matches the canonical `IPyth` from pyth-sdk-solidity.
 interface IPyth {
     struct Price {

@@ -1,7 +1,7 @@
 import { http, type Transport } from "wagmi";
 import type { Chain } from "viem";
 import { baseSepolia, foundry } from "viem/chains";
-import { getDeployment } from "@equora/shared";
+import { getDeployment } from "@parallel/shared";
 
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? "31337");
 export const chain: Chain = CHAIN_ID === 84532 ? baseSepolia : foundry;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createPublicClient, createWalletClient, http, isAddress, parseEther, type Address, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { faucetAbi } from "@equora/shared";
+import { faucetAbi } from "@parallel/shared";
 import { chain, RPC_URL, deployment } from "@/lib/config";
 
 /**

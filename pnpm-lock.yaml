@@ -10,7 +10,7 @@ importers:
 
   keeper:
     dependencies:
-      '@equora/shared':
+      '@parallel/shared':
         specifier: workspace:*
         version: link:../packages/shared
       viem:
@@ -35,7 +35,7 @@ importers:
 
   web:
     dependencies:
-      '@equora/shared':
+      '@parallel/shared':
         specifier: workspace:*
         version: link:../packages/shared
       '@privy-io/react-auth':

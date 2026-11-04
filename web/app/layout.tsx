@@ -4,7 +4,7 @@ import { Providers } from "./providers";
 import { Header } from "@/components/Header";
 
 export const metadata: Metadata = {
-  title: "Equora",
+  title: "Parallel Markets",
   description: "Invest in US equities in your own currency, hedged or unhedged, and borrow against your position. Testnet demo.",
 };
 
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="wrap">{children}</main>
           <footer className="footer">
             <div className="wrap">
-              Equora runs on Base Sepolia testnet. Every token is a mock, prices may be simulated, and the FX hedge is a
+              Parallel Markets runs on Base Sepolia testnet. Every token is a mock, prices may be simulated, and the FX hedge is a
               simulation of what an institutional counterparty would provide. Lending runs on unmodified Morpho Blue.
             </div>
           </footer>

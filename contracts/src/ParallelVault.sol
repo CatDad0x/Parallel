@@ -15,7 +15,7 @@ import {IOracleHub} from "./interfaces/IOracleHub.sol";
 import {SimExchange} from "./SimExchange.sol";
 import {HedgeBook} from "./HedgeBook.sol";
 
-/// @title EquoraVault
+/// @title ParallelVault
 /// @notice ERC-4626 vault denominated in a local-currency stablecoin (e.g. AUDD) that holds
 /// USD-priced tokenized equities, optionally with an FX hedge (short USD / long local).
 ///
@@ -27,7 +27,7 @@ import {HedgeBook} from "./HedgeBook.sol";
 /// - Entry/exit cost equal to the expected execution spread is charged to the transacting user,
 ///   so existing holders are not diluted by trading costs.
 /// - Management fee accrues by minting shares to the treasury.
-contract EquoraVault is Initializable, ERC4626Upgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
+contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
     using Math for uint256;
 

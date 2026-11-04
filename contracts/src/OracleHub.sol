@@ -6,7 +6,7 @@ import {IPyth} from "./interfaces/IPyth.sol";
 import {IOracleHub} from "./interfaces/IOracleHub.sol";
 
 /// @title OracleHub
-/// @notice Single source of truth for Equora prices.
+/// @notice Single source of truth for Parallel Markets prices.
 ///  - Equity prices: USD per token (18 dp).
 ///  - FX: USD per 1 unit of local currency (18 dp). Inverted feeds (e.g. USD/INR) are flipped on read.
 ///  - Admin overrides for staged demo price shocks (auto-expiring).
@@ -27,7 +27,7 @@ contract OracleHub is IOracleHub, AccessControl {
     }
 
     struct Override {
-        uint256 price; // 18 dp, already in Equora convention
+        uint256 price; // 18 dp, already in Parallel Markets convention
         uint64 expiry;
     }
 
@@ -79,7 +79,7 @@ contract OracleHub is IOracleHub, AccessControl {
         return price(currency);
     }
 
-    /// @notice Price for a key in Equora convention (18 dp). Override wins while active.
+    /// @notice Price for a key in Parallel Markets convention (18 dp). Override wins while active.
     /// When the market is open, Pyth data older than `maxAge` reverts. When closed, the last
     /// published price is returned (the "last close").
     function price(bytes32 key) public view returns (uint256 p, uint256 updatedAt) {

@@ -2,11 +2,11 @@
 pragma solidity ^0.8.26;
 
 import {BaseTest} from "./Base.t.sol";
-import {EquoraVault} from "../src/EquoraVault.sol";
+import {ParallelVault} from "../src/ParallelVault.sol";
 import {OracleHub} from "../src/OracleHub.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-contract EquoraVaultTest is BaseTest {
+contract ParallelVaultTest is BaseTest {
     uint256 constant DEP = 10_000e6; // A$10,000
 
     // ------------------------------------------------------------------ basics
@@ -205,7 +205,7 @@ contract EquoraVaultTest is BaseTest {
         oracle.setMarketMode(OracleHub.MarketMode.FORCE_CLOSED);
         vm.startPrank(alice);
         audd.approve(address(audHedgedIndex), DEP);
-        vm.expectRevert(EquoraVault.MarketClosed.selector);
+        vm.expectRevert(ParallelVault.MarketClosed.selector);
         audHedgedIndex.deposit(DEP, alice);
         vm.stopPrank();
         assertEq(audHedgedIndex.maxDeposit(alice), 0);
@@ -229,7 +229,7 @@ contract EquoraVaultTest is BaseTest {
 
         // keeper cannot settle while closed
         vm.prank(keeper);
-        vm.expectRevert(EquoraVault.MarketClosed.selector);
+        vm.expectRevert(ParallelVault.MarketClosed.selector);
         audHedgedIndex.processQueue(10);
 
         oracle.setMarketMode(OracleHub.MarketMode.FORCE_OPEN);
@@ -269,7 +269,7 @@ contract EquoraVaultTest is BaseTest {
         vm.stopPrank();
 
         vm.prank(bob);
-        vm.expectRevert(EquoraVault.NotRequestOwner.selector);
+        vm.expectRevert(ParallelVault.NotRequestOwner.selector);
         audHedgedIndex.cancelDeposit(id);
 
         vm.prank(alice);
@@ -278,7 +278,7 @@ contract EquoraVaultTest is BaseTest {
         assertEq(audHedgedIndex.pendingDepositAssets(), 0);
 
         vm.prank(alice);
-        vm.expectRevert(EquoraVault.RequestClosed.selector);
+        vm.expectRevert(ParallelVault.RequestClosed.selector);
         audHedgedIndex.cancelDeposit(id);
 
         // keeper skips the cancelled slot
@@ -352,7 +352,7 @@ contract EquoraVaultTest is BaseTest {
 
     function test_requestRevertsWhenOpen() public {
         vm.prank(alice);
-        vm.expectRevert(EquoraVault.MarketOpenUseInstant.selector);
+        vm.expectRevert(ParallelVault.MarketOpenUseInstant.selector);
         audHedgedIndex.requestDeposit(DEP, alice, 0);
     }
 
@@ -365,9 +365,9 @@ contract EquoraVaultTest is BaseTest {
     }
 
     function test_mintAndWithdrawUnsupported() public {
-        vm.expectRevert(EquoraVault.Unsupported.selector);
+        vm.expectRevert(ParallelVault.Unsupported.selector);
         audHedgedIndex.mint(1, alice);
-        vm.expectRevert(EquoraVault.Unsupported.selector);
+        vm.expectRevert(ParallelVault.Unsupported.selector);
         audHedgedIndex.withdraw(1, alice, alice);
         assertEq(audHedgedIndex.maxMint(alice), 0);
     }
@@ -435,7 +435,7 @@ contract EquoraVaultTest is BaseTest {
 
     /// After arbitrary equity + FX moves, every holder can fully exit and the vault stays solvent.
     function testFuzz_everyoneCanExit(uint64 a, uint64 b, int16 spyBps, int16 audBps, bool hedgedVault) public {
-        EquoraVault v = hedgedVault ? audHedgedIndex : audUnhedgedIndex;
+        ParallelVault v = hedgedVault ? audHedgedIndex : audUnhedgedIndex;
         _deposit(v, alice, bound(uint256(a), 1e6, 500_000e6));
         _deposit(v, bob, bound(uint256(b), 1e6, 500_000e6));
         _move(ID_SPY, bound(int256(spyBps), -6_000, 6_000));

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAccount, usePublicClient, useReadContract, useReadContracts, useWriteContract, useConfig } from "wagmi";
 import { waitForTransactionReceipt } from "wagmi/actions";
 import { parseAbiItem, type Address, type Abi } from "viem";
-import { vaultAbi, oracleHubAbi, tokenAbi, type VaultInfo } from "@equora/shared";
+import { vaultAbi, oracleHubAbi, tokenAbi, type VaultInfo } from "@parallel/shared";
 import { deployment } from "./config";
 
 export function useMarketOpen() {
@@ -198,7 +198,7 @@ export function readableError(e: unknown): string {
     [/User rejected|denied/i, "You cancelled the transaction in your wallet."],
     [/MarketClosed/, "US markets are closed. Queue the request instead, or try again at the next open."],
     [/OpeningLtvExceeded/, "That borrow is above the opening limit for this market. Borrow less or add collateral."],
-    [/BorrowingDisabled/, "Borrowing through Equora is not enabled for this market."],
+    [/BorrowingDisabled/, "Borrowing through Parallel Markets is not enabled for this market."],
     [/CoolingDown/, "Test funds were already claimed in the last 24 hours."],
     [/StalePrice/, "Prices are updating. Try again in a minute."],
     [/insufficient|exceeds balance|InsufficientBalance/i, "Your balance is too low for this amount."],

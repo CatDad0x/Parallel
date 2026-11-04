@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
 import { parseUnits } from "viem";
-import { morphoAbi, tokenAbi, marketParams, CURRENCIES } from "@equora/shared";
+import { morphoAbi, tokenAbi, marketParams, CURRENCIES } from "@parallel/shared";
 import { deployment } from "@/lib/config";
 import { useCurrency } from "@/lib/currency";
 import { useBalances, useSteps } from "@/lib/hooks";
@@ -72,7 +72,7 @@ function LendRow({ st, onDone }: { st: MarketState; onDone: () => void }) {
   return (
     <div className="panel lend-row">
       <div className="stack" style={{ gap: 6 }}>
-        <h3>Lend against {vault ? `${vault.name.replace("Equora ", "")} shares` : "mock S&P 500 tokens"}</h3>
+        <h3>Lend against {vault ? `${vault.name.replace("Parallel ", "")} shares` : "mock S&P 500 tokens"}</h3>
         <dl className="kv small" style={{ maxWidth: 420 }}>
           <dt>Supply rate</dt><dd className="pos">{pct(st.supplyApr * 100, 2)} a year</dd>
           <dt>Borrowed</dt><dd>{pct(st.utilisation * 100, 1)} of {money(st.supplyAssets, cur.symbol, 0)}</dd>

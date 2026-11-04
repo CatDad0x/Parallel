@@ -51,7 +51,7 @@ function PlainWagmi({ children, queryClient }: { children: ReactNode; queryClien
       ssr: true,
       connectors: [
         injected(),
-        coinbaseWallet({ appName: "Equora (testnet demo)", preference: "smartWalletOnly" }),
+        coinbaseWallet({ appName: "Parallel Markets (testnet demo)", preference: "smartWalletOnly" }),
         ...(IS_LOCAL ? [mock({ accounts: LOCAL_ACCOUNTS, features: { reconnect: true } })] : []),
       ],
     }),

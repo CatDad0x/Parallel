@@ -1,5 +1,5 @@
 /**
- * Equora keeper.
+ * Parallel Markets keeper.
  *
  * Jobs (cadence configurable via env):
  *  - prices:      DemoPyth mode: simulated random walk around anchor levels, pushed every PRICE_SECS.
@@ -37,7 +37,7 @@ import {
   exchangeAbi,
   tokenAbi,
   type MarketInfo,
-} from "@equora/shared";
+} from "@parallel/shared";
 
 // ------------------------------------------------------------------ config
 

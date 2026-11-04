@@ -13,12 +13,12 @@ import {MarketParamsLib} from "morpho-blue/libraries/MarketParamsLib.sol";
 import {MorphoBalancesLib} from "morpho-blue/libraries/periphery/MorphoBalancesLib.sol";
 import {SharesMathLib} from "morpho-blue/libraries/SharesMathLib.sol";
 
-import {EquoraVault} from "./EquoraVault.sol";
+import {ParallelVault} from "./ParallelVault.sol";
 import {SimExchange} from "./SimExchange.sol";
 import {IOracleHub} from "./interfaces/IOracleHub.sol";
 
-/// @title EquoraRouter
-/// @notice Single entry point for the Equora UI.
+/// @title ParallelRouter
+/// @notice Single entry point for the Parallel Markets UI.
 ///  - Deposit with any stablecoin of the vault's currency group (e.g. mAUDM -> mAUDD at par).
 ///  - Redeem to any stablecoin of the group.
 ///  - One-click "deposit and borrow", "supply collateral and borrow", "repay and withdraw".
@@ -31,7 +31,7 @@ import {IOracleHub} from "./interfaces/IOracleHub.sol";
 ///
 /// Morpho actions taken on a user's behalf require `morpho.setAuthorization(router, true)`.
 /// Vault redemptions through the router require a share allowance to the router.
-contract EquoraRouter is AccessControl, Multicall {
+contract ParallelRouter is AccessControl, Multicall {
     using SafeERC20 for IERC20;
     using MarketParamsLib for MarketParams;
     using MorphoBalancesLib for IMorpho;
@@ -73,7 +73,7 @@ contract EquoraRouter is AccessControl, Multicall {
     // ------------------------------------------------------------------ vault flows
 
     /// @notice Deposit `amount` of `token` (any stable in the vault's currency group) into `vault`.
-    function depositWith(EquoraVault vault, address token, uint256 amount, uint256 minShares)
+    function depositWith(ParallelVault vault, address token, uint256 amount, uint256 minShares)
         external
         returns (uint256 shares)
     {
@@ -85,7 +85,7 @@ contract EquoraRouter is AccessControl, Multicall {
     }
 
     /// @notice Redeem `shares` and receive `outToken` (any stable in the vault's currency group).
-    function redeemTo(EquoraVault vault, uint256 shares, address outToken, uint256 minOut)
+    function redeemTo(ParallelVault vault, uint256 shares, address outToken, uint256 minOut)
         external
         returns (uint256 out)
     {
@@ -106,9 +106,9 @@ contract EquoraRouter is AccessControl, Multicall {
         if (borrowAssets > 0) _borrow(mp, borrowAssets, msg.sender);
     }
 
-    /// @notice Deposit into an Equora vault, post the shares as collateral and borrow, in one transaction.
+    /// @notice Deposit into an Parallel Markets vault, post the shares as collateral and borrow, in one transaction.
     function depositToVaultAndBorrow(
-        EquoraVault vault,
+        ParallelVault vault,
         address token,
         uint256 amount,
         uint256 minShares,
@@ -198,7 +198,7 @@ contract EquoraRouter is AccessControl, Multicall {
     }
 
     /// @dev Pull `amount` of `token` from the sender and convert to the vault's asset if needed.
-    function _pullAsAsset(EquoraVault vault, address token, uint256 amount) internal returns (uint256) {
+    function _pullAsAsset(ParallelVault vault, address token, uint256 amount) internal returns (uint256) {
         IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
         address a = vault.asset();
         if (token == a) return amount;

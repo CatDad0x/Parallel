@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { runScenario } from "@equora/shared";
+import { runScenario } from "@parallel/shared";
 import { useCurrency } from "@/lib/currency";
 import { money, pct, signedMoney } from "@/lib/format";
 

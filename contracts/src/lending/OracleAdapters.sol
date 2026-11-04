@@ -5,7 +5,7 @@ import {IOracle} from "morpho-blue/interfaces/IOracle.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IOracleHub} from "../interfaces/IOracleHub.sol";
 
-interface IEquoraVaultView {
+interface IParallelVaultView {
     function previewRedeem(uint256 shares) external view returns (uint256);
     function asset() external view returns (address);
     function decimals() external view returns (uint8);
@@ -44,17 +44,17 @@ contract EquityOracleAdapter is IOracle {
 }
 
 /// @title VaultShareOracleAdapter
-/// @notice Morpho oracle for (collateral = Equora vault shares, loan = the vault's own asset).
+/// @notice Morpho oracle for (collateral = Parallel Markets vault shares, loan = the vault's own asset).
 /// Values one whole share at its **realisable** value, `previewRedeem(1 share)`, i.e. NAV per
 /// share net of the exit cost a liquidator would pay. NAV uses tracked balances, so direct token
 /// donations to the vault do not move this price. It still depends on equity prices, FX, hedge
 /// MTM and fees; it is not manipulation-proof against a compromised feed or admin.
 contract VaultShareOracleAdapter is IOracle {
-    IEquoraVaultView public immutable vault;
+    IParallelVaultView public immutable vault;
     uint256 internal immutable _oneShare;
     uint256 internal immutable _scale; // 10^(36 + dLoan - dShares - dAsset)
 
-    constructor(IEquoraVaultView vault_) {
+    constructor(IParallelVaultView vault_) {
         vault = vault_;
         uint8 dShares = vault_.decimals();
         uint8 dAsset = IERC20Metadata(vault_.asset()).decimals();
