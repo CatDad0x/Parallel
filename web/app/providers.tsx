@@ -6,7 +6,7 @@ import { WagmiProvider, createConfig } from "wagmi";
 import { injected, coinbaseWallet, mock } from "wagmi/connectors";
 import { PrivyProvider } from "@privy-io/react-auth";
 import { WagmiProvider as PrivyWagmiProvider, createConfig as createPrivyConfig } from "@privy-io/wagmi";
-import { chain, transports, PRIVY_APP_ID, IS_LOCAL } from "@/lib/config";
+import { chain, transports, PRIVY_APP_ID, USE_MOCK_WALLET } from "@/lib/config";
 import { CurrencyProvider } from "@/lib/currency";
 
 // Anvil's first funded test accounts. Local development only.
@@ -52,7 +52,7 @@ function PlainWagmi({ children, queryClient }: { children: ReactNode; queryClien
       connectors: [
         injected(),
         coinbaseWallet({ appName: "Parallel Markets (testnet demo)", preference: "smartWalletOnly" }),
-        ...(IS_LOCAL ? [mock({ accounts: LOCAL_ACCOUNTS, features: { reconnect: true } })] : []),
+        ...(USE_MOCK_WALLET ? [mock({ accounts: LOCAL_ACCOUNTS, features: { reconnect: true } })] : []),
       ],
     }),
   );

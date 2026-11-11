@@ -138,8 +138,8 @@ export default function Invest() {
             <li>Prices, costs and rates come from the test contracts and are illustrative.</li>
           </ul>
         )}
-        <button className="pm-btn wide" disabled={steps.running || !vault || parsed === 0n} onClick={confirm}>
-          {steps.running ? `${steps.label}…` : open === false ? `Place ${fmtMoney(gross, symbol)} order` : `Confirm and invest ${fmtMoney(gross, symbol)}`}
+        <button className="pm-btn wide" disabled={steps.running || !vault || parsed === 0n || shares === 0n} onClick={confirm}>
+          {steps.running ? `${steps.label}…` : shares === 0n ? "Getting your price…" : open === false ? `Place ${fmtMoney(gross, symbol)} order` : `Confirm and invest ${fmtMoney(gross, symbol)}`}
         </button>
         {steps.error && <Notice tone="red">{steps.error}</Notice>}
       </div>

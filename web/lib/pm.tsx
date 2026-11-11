@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { useAccount, useConnect, useReadContract, useReadContracts } from "wagmi";
 import { usePrivy } from "@privy-io/react-auth";
 import { CURRENCIES, exchangeAbi, faucetAbi, morphoAbi, oracleHubAbi, routerAbi, marketParams, type MarketInfo, type VaultInfo } from "@parallel/shared";
-import { deployment, IS_LOCAL, PRIVY_APP_ID } from "./config";
+import { deployment, USE_MOCK_WALLET, PRIVY_APP_ID } from "./config";
 import { useCurrency } from "./currency";
 import { useBalances, useFx, useSteps, useVaultStats, type VaultStats } from "./hooks";
 
@@ -134,7 +134,7 @@ function PrivySignIn({ label, className }: { label: string; className: string })
 
 function WagmiSignIn({ label, className }: { label: string; className: string }) {
   const { connectors, connect, isPending } = useConnect();
-  const pick = IS_LOCAL
+  const pick = USE_MOCK_WALLET
     ? connectors.find((c) => c.id === "mock")
     : (connectors.find((c) => c.id === "coinbaseWalletSDK") ?? connectors[0]);
   return (

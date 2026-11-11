@@ -41,7 +41,7 @@ Fund both from a Base Sepolia faucet. The deployer needs about 0.05 ETH; the kee
 ### 2. Deploy the contracts
 ```bash
 # prerequisites: Foundry (https://getfoundry.sh), Node 20+, pnpm
-git clone https://github.com/CatDad0x/Equora && cd Equora
+git clone https://github.com/CatDad0x/Parallel && cd Parallel
 pnpm install
 cp contracts/.env.example contracts/.env      # fill PRIVATE_KEY, KEEPER_ADDRESS, BASESCAN_API_KEY
 pnpm build:contracts

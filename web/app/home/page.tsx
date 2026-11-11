@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { deployment } from "@/lib/config";
 import { useMarkets } from "@/lib/lending";
+import { useLiquidation } from "@/lib/liquidations";
 import { useLoans, useProducts, useWallet, userSharesValue, PRODUCT_META, Slash, Notice, fmtMoney, useDeviation } from "@/lib/pm";
 
 export default function Home() {
@@ -10,6 +12,9 @@ export default function Home() {
   const { loans } = useLoans();
   const { states } = useMarkets(loans.map((l) => l.market));
   const dev = useDeviation();
+  const { liquidation, dismiss } = useLiquidation();
+  const liqStrategy = deployment.vaults.find((v) => v.address === deployment.markets.find((m) => m.id === liquidation?.marketId)?.collateralToken)?.strategy;
+  const liqName = liqStrategy ? PRODUCT_META[liqStrategy].name : "investment";
 
   const rows = stats.map((s) => {
     const col = loans.find((l) => l.market.collateralToken === s.info.address)?.collateralShares ?? 0n;
@@ -35,6 +40,15 @@ export default function Home() {
 
   return (
     <>
+      {liquidation && (
+        <Notice tone="warn">
+          <strong>Some of your {liqName} was sold to repay part of your loan.</strong>{" "}
+          Your shares lost value and your loan got too big for them, so about {fmtMoney(liquidation.repaid, symbol)} of the loan was repaid automatically.
+          The rest of your loan and shares are unchanged.{" "}
+          <Link href="/borrow" className="pm-link">See your loan</Link>{" "}
+          <button className="pm-link" onClick={dismiss}>Dismiss</button>
+        </Notice>
+      )}
       {dev.level >= 1 && (
         <Notice tone={dev.level >= 2 ? "red" : "warn"}>
           <strong>The share price on the exchange is {Math.abs(dev.driftBps) / 100}% away from the market price.</strong>{" "}
