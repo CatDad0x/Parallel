@@ -65,3 +65,10 @@ Never ask him to paste a private key into chat. Keys go in `contracts/.env`, `ke
 - **Local login note:** the mock account does not survive a full page reload; navigate with the sidebar, or sign in again.
 - **Keeper verified end to end** on a fresh local anvil (`--block-time 1`): every job ran, `mirrorHedge` synced AUD and EUR to within 6 bps of target, INR skipped (no pair), zero errors.
 - **Research:** Morpho Blue exists at the canonical `0xBBBB…FFCb` on Base Sepolia (set `MORPHO_ADDRESS` in the deploy). Base has live tokenised stocks (Coinbase Tokenized Stocks, Ondo, xStocks) trading on Aerodrome and Uniswap, but no SPY token with verified deep liquidity yet. Lenders for our markets would come from a curated Morpho vault (Vault V2) or incentives.
+
+## 11 Nov 2026 (later): fork rehearsal, UI port, rename
+- **Base Sepolia fork rehearsal passed.** Anvil fork of Base Sepolia, own Morpho copy, keeper running continuously. Borrowed A$880 against A$2,000 of S&P 500, shocked SPY down 30%: the keeper liquidated within about a minute (hf 0.966, about 705 shares seized, debt halved). Keeper health stayed OK and prices did not go stale. New-user onboarding via the relayer also worked.
+- **Morpho correction:** canonical Morpho cannot host our LLTVs or IRM (see SPEC section 5). Earlier statement that we would reuse it was wrong for these parameters.
+- **UI:** Home liquidation notice built (`web/lib/liquidations.ts`). Home dashboard (chart, activity log, sparklines) and Portfolio chart/columns ported from the redesign PRs (now closed) into the current app. `NEXT_PUBLIC_DEPLOY_BLOCK` bounds event scans. Local fork needs `NEXT_PUBLIC_CHAIN_ID=84532 NEXT_PUBLIC_MOCK_WALLET=1 NEXT_PUBLIC_DEPLOY_BLOCK=<block>`.
+- **Open:** warm "Paper Trade" restyle via Claude Design (brief in the session folder); safety meter says "Comfortable" at the maximum opening LTV and thresholds are still not agreed; Privy email login untested (needs an app ID); real Base Sepolia deploy needs a fresh test-only wallet, ETH and hosting.
+- Folder renamed to `Parallel`; GitHub repo renamed to `Parallel`.

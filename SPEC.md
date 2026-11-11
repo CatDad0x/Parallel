@@ -208,7 +208,8 @@ Morpho Blue expects `price()` = the price of **one whole collateral token in who
 ## 5. Lending (Morpho Blue)
 
 ### 5.1 Deployment
-- Use the canonical Morpho Blue deployment on Base Sepolia if one exists. Otherwise deploy `morpho-org/morpho-blue` (check the licence) and enable the required LLTVs and IRM.
+- **Finding (11 Nov 2026):** the canonical Morpho Blue on Base Sepolia and Base mainnet only allows governance-enabled LLTVs (38.5%, 62.5%, 77%) and IRMs, so our 50% / 60% LLTVs and KinkedIrm cannot be used there. The testnet therefore deploys its own Morpho copy (leave `MORPHO_ADDRESS` unset). On mainnet we would need governance enablement or different LLTVs.
+- Original plan: use the canonical Morpho Blue deployment on Base Sepolia if one exists. Otherwise deploy `morpho-org/morpho-blue` (check the licence) and enable the required LLTVs and IRM.
 - IRM: deploy a simple kinked IRM (`base 2%`, `slope1` to 8% at 80% utilisation, `slope2` steep above that). The AdaptiveCurveIRM is acceptable if already deployed.
 
 ### 5.2 Initial markets
