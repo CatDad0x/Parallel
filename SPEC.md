@@ -400,9 +400,9 @@ Status: implemented in `contracts/`, 66 tests passing (unit + fuzz), ~91% line c
 5. Lending: same-currency loans only, a separate market per collateral, rate rising with usage, warnings then liquidation. Cross-currency borrowing is deferred.
 6. LTVs to be back-tested before they are fixed (Morpho LLTV is immutable once a market exists).
 
-## 14. v0.4 product direction (agreed, not yet built)
+## 14. v0.4 product direction (contracts built 5 Nov 2026; web app and keeper config still v0.3)
 
-Where this differs from §0–§13, **this section wins**. The code in the repo still implements v0.3 (12 vaults, queue-based closed-market exits, v0.3 LTVs in §5.2).
+Where this differs from §0–§13, **this section wins**. The contracts now implement this section (see 14.7); the web app still has the v0.3 screens.
 
 ### 14.1 Product 1: Invest
 **Journey:** the user deposits AUD, EUR or INR stablecoin, chooses the S&P 500 (`pSPY`) or US tech (`pUSTech`), and enters an amount. The app buys the exposure onchain and issues a share token (ERC-20, delivered through the ERC-4626 vault). The user can redeem for their own currency at any time.
@@ -424,21 +424,36 @@ Where this differs from §0–§13, **this section wins**. The code in the repo 
 - **Same-currency only for now (6 markets).** Cross-currency borrowing is deferred: it adds hidden FX risk on the loan (the vault hedge covers currency against USD only), needs 18 markets, and fragments lender liquidity. When added: lower limits and a clear "currency risk on your loan" warning.
 - **Lend:** deposit AUD, EUR or INR and earn interest from borrowers. A separate Morpho market per collateral. The UI shows "Safer" (lent against `pSPY`) and "Higher yield" (lent against `pUSTech`), with one rate each.
 - **Rate:** rises with usage (existing `KinkedIrm`).
-- **Liquidation:** safety warnings first as a loan worsens, then standard liquidation by the keeper with a small bonus.
+- **Liquidation:** safety warnings first as a loan worsens, then standard liquidation by the keeper with the Morpho liquidation bonus (about 14-15%, set by formula, see §14.4).
 - **Revenue:** the annual fee on shares plus a slice of borrower interest through Morpho Blue's per-market fee setting (percentage not decided).
 
-### 14.4 LTV (provisional, to be back-tested)
-Separate limits for index and tech, because tech is far more volatile. Provisional start:
+### 14.4 LTV (back-tested 5 Nov 2026, proposed final)
+Separate limits for index and tech, because tech is far more volatile.
 
-| Collateral | Max opening LTV | Liquidation LTV |
-|---|---|---|
-| `pSPY` | about 50% | about 65% |
-| `pUSTech` | about 40% | about 55% |
+| Collateral | Max opening LTV | Liquidation LTV (LLTV) | Fall needed to liquidate |
+|---|---|---|---|
+| `pSPY` | 45% | 60% | 25% |
+| `pUSTech` | 35% | 50% | 30% |
 
-Back-test historical index and tech-basket drawdowns, weekend gaps and liquidation delay, with the DEX discount from §14.2 included, before fixing anything. Morpho market parameters, including LLTV, are immutable. The §5.2 figures (45–55% opening, 62.5–77% liquidation) were v0.3 illustrations and will be replaced.
+**Method.** Daily prices from Yahoo Finance, Jan 2000 to Nov 2026, for SPY and an equal-weight basket of AAPL, MSFT, NVDA, AMZN and GOOGL (before 2004 only the names that existed). A borrower opens at the maximum LTV on every possible day, with 8% interest and a one-year hold. Liquidation triggers at the first close above the LLTV and executes 1 to 10 trading days later, with collateral sold at a 0% to 25% DEX discount to the index price. Bad debt means the sale cannot repay the loan.
+
+**Findings.**
+- Worst drawdowns: SPY -55% (Mar 2009), tech basket -64% (Nov 2008). Worst 5 days: SPY -19.8%, tech -24.8%. Worst 10 days: SPY -26.8%, tech -34.3%.
+- Both proposed pairs survive the worst 5-day fall without liquidation (pSPY loan reaches about 56% LTV, pUSTech about 46.5%).
+- No bad debt at any tested LTV with a delay up to 3 days and a DEX discount up to 10%. With a 10-day delay and a 25% discount, the old 50/65 pSPY pair produced bad debt on 0.13% of start dates; 45/60 produced none at a 10-day delay.
+- The old provisional pairs (50/65, 40/55) were not unsafe, only liquidated more often (pSPY 17.7% of start dates at 50/65 against 16.0% at 45/60).
+- After a trigger, an instant further fall causes bad debt only beyond about 33% at LLTV 60% and 44% at LLTV 50% (10% DEX discount). The deviation guard (§14.2) should therefore pause borrowing and liquidation when the DEX price is more than **10%** below the index.
+
+**Limits of the test.** Daily closes understate intraday and weekend gaps. The tech basket is survivorship-biased. Vault hedge basis, carry and FX moves are not modelled. Borrowers who do not borrow the maximum are liquidated less often than shown.
+
+**Notes.**
+- Morpho market parameters, including LLTV, are immutable. The opening LTV is an app-level cap and can be lowered later.
+- Morpho sets the liquidation bonus by formula from the LLTV (about 13.6% at 60%, capped at 15% at 50%), so it cannot be tuned.
+- The §5.2 figures (45-55% opening, 62.5-77% liquidation) were v0.3 illustrations and are replaced by this table.
+- Suggested safety meter: green below 80% of the LLTV, amber from 80% to 92%, red above 92%. Not yet agreed (§14.5).
 
 ### 14.5 Still open
-- Final LTV and liquidation numbers (§14.4); the management-fee and interest-spread percentages.
+- Confirm the proposed LTVs (§14.4) and the 10% deviation pause level; the management-fee and interest-spread percentages.
 - `mAUDC` naming (§12 item 4).
 - The name "Parallel Markets" overlaps with existing finance companies (see HANDOFF.md).
 - A real FX hedge counterparty, which any launch beyond testnet would need.
@@ -475,7 +490,7 @@ Back-test historical index and tech-basket drawdowns, weekend gaps and liquidati
 
 **5. Manage and wind down the loan.** Repay part or all at any time, add collateral, or withdraw collateral while the loan stays safe. Interest accrues continuously. Once repaid, the shares unlock and can be held or sold.
 
-**6. The loan gets risky.** The safety meter turns amber and the app shows warnings as the loan approaches the limit. At the liquidation limit the keeper sells part of the collateral to repay part of the loan (small bonus to the keeper); the user keeps the rest.
+**6. The loan gets risky.** The safety meter turns amber and the app shows warnings as the loan approaches the limit. At the liquidation limit the keeper sells part of the collateral to repay part of the loan (Morpho liquidation bonus to the keeper, §14.4); the user keeps the rest.
 
 **7. Lend (Earn).**
 1. Pick a currency, then "Safer" (lent against `pSPY`) or "Higher yield" (lent against `pUSTech`); each shows one variable rate and how much is currently lent out.
@@ -487,7 +502,18 @@ Back-test historical index and tech-basket drawdowns, weekend gaps and liquidati
 
 **Edge states to design:** prices still loading or stale (fail closed, "prices are updating"), US market closed, test-money request failed, not enough balance, DEX gap warnings, a repay or sell blocked by an active loan.
 
-**Open (not decided):** whether new borrowing is still paused while US markets are closed. v0.3 pauses it at interface level (§5.4); with 24/7 DEX exits this needs a decision. Also the warning levels for loan safety, and whether users get alerts (email or push) before a liquidation.
+**Decided 5 Nov 2026:** new borrowing is allowed 24/7. The DEX deviation guard replaces the v0.3 market-hours rule (§5.4 is superseded). **Open (not decided):** the warning levels for loan safety, and whether users get alerts (email or push) before a liquidation.
+
+### 14.7 What the contracts do now (v0.4, built and tested locally)
+- **Six hedged vaults**, one per currency and strategy: `pSPY-AUD`, `pUSTech-AUD`, `pSPY-EUR`, `pUSTech-EUR`, `pSPY-INR`, `pUSTech-INR`. The factory can still create unhedged vaults (tests and simulator), but Deploy does not.
+- **Simulated DEX.** `SimExchange.setDrift(bps)` (admin, demo control) moves the DEX price from -50% to +50% of the index. Sells work 24/7; buys still need the market open. NAV and collateral never use the DEX price.
+- **Redemptions** (`redeem`) work 24/7 and pay the actual DEX execution price; previews match execution exactly. `redeemQuote(shares)` returns the payout at the DEX, at the index, the gap in bps and the level. A discount is paid by the redeemer, a premium stays with remaining holders. `requestRedeem` is the "wait" option and settles in `processQueue` if `minAssets` is met.
+- **Deviation guard, fixed constants** in `SimExchange`: level 0 under 1%, amber 1-3%, red 3-10%, paused at 10% or more (`deviationLevel()`). At level 3 the vault-share oracle adapter reverts (borrowing, liquidation and collateral withdrawal pause; repaying still works) and the router refuses new borrows.
+- **Collateral value** is `previewRedeemAtIndex` (index price net of the normal spread, no drift).
+- **Six same-currency Morpho markets**, one per vault, with the §14.4 LTVs (LLTV 60% / 50%, router opening cap 45% / 35%) and a 10% Morpho interest fee to the treasury (set only when Deploy deploys Morpho itself).
+- **Mirror hedge on gTrade (added 10 Nov 2026).** LP capital cannot be sourced, so the real FX risk is carried on an existing onchain venue instead. `HedgeManager` keeps a position on a venue (`IHedgeVenue`) equal to `HedgeBook.openInterestUsd` per currency; vault NAV is unchanged (oracle maths), so deposits and redeems stay instant. `GTradeVenue` trades gTrade with USDC margin at fixed 5x: EUR = long EUR/USD (pair 21); AUD = long EUR/USD + short EUR/AUD (pair 110), a two-leg approximation of AUD/USD with fees on both legs; INR has no pair and stays simulated. gTrade orders are asynchronous with no callback, so the keeper calls `sync`, waits for the oracle fill, then `confirm`. Base Sepolia has no gTrade, so testnet uses `MockGTrade` (async orders, 0.012% fees, % PnL, no liquidation or funding fees). Checked read-only against the deployed contracts on 10 Nov 2026: `getTrade(address,uint32)` returns the 15-field `Trade` struct on both Base mainnet and Arbitrum Sepolia; Base pair 21 = EUR/USD and pair 110 = EUR/AUD; USDC `collateralIndex` is 1 on Base (3 on Arbitrum Sepolia, set per deploy). Still not verified: that `openTrade` and the size-update calls accept our parameters (needs a funded testnet trade), the minimum position size, and fees on Base. Not built: automatic margin top-up (an unhedged liquidation risk at 5x), the USDC to local-stable conversion of venue P&L (treasury step), real gTrade event watching in the keeper. In this setup the `HedgeBook` pool below is only a timing and working-capital buffer.
+- **Onchain FX hedge (added 9 Nov 2026).** `HedgeBook` is now a pool-backed, oracle-priced FX perp venue (the model used by Ostium or gTrade), not a mint/burn simulation. Each hedged vault holds a short-USD/long-local position. The counterparty is a per-currency LP pool funded with real stablecoin: hedge gains are paid out of the pool, hedge losses and carry are paid into it, and nothing is minted or burned. Anyone can `lpDeposit` / `lpWithdraw` (LPs earn carry and lose when the local currency strengthens). Limits: open interest is capped at 5x pool liquidity (the hedge is clamped, not reverted); LPs cannot withdraw below 20% of open interest; a gain larger than the pool is paid only up to what the pool holds (haircut). Deploy seeds A$5m, €5m and ₹400m pools. Still a mock: priced from the oracle (no order book or slippage), no funding-rate skew, no hedger liquidation (the vault settles at every adjust), registered vaults only. Production needs a real venue or counterparty (§14.5).
+- **Not yet done:** web screens, LP / pool UI,  demo-controls slider, keeper config for the guard, deviation-level UI states, Base Sepolia deploy.
 
 ## Appendix A: Feed config (fill during Phase 3)
 

@@ -1,68 +1,87 @@
 "use client";
 
 import Link from "next/link";
-import { Simulator } from "@/components/Simulator";
+import { useState } from "react";
 import { useCurrency } from "@/lib/currency";
+import { Logo } from "@/components/Shell";
+import { fmtMoney } from "@/lib/pm";
 
 const NAMES: Record<string, string> = { AUD: "Australian dollars", EUR: "euros", INR: "rupees" };
+const SHORT: Record<string, string> = { AUD: "A$", EUR: "euro", INR: "rupee" };
 
-export default function Home() {
-  const { currency } = useCurrency();
+export default function Landing() {
+  const { currency, meta } = useCurrency();
+  const [rise, setRise] = useState(10);
+  const start = 10_000;
+  const without = start / (1 + rise / 100);
   return (
-    <div className="page" style={{ gap: 56 }}>
-      <section className="stack" style={{ gap: 16, paddingTop: 24 }}>
-        <h1 style={{ maxWidth: "18ch" }}>US shares, held in {NAMES[currency]}.</h1>
-        <p className="lede">
-          Deposit a local stablecoin, invest in the S&amp;P 500 or a US tech basket, and choose whether the currency
-          swing is yours to keep or hedged away. Then borrow against what you hold.
+    <div className="pm-land">
+      <div className="pm-land-nav">
+        <span className="pm-brand" style={{ padding: 0 }}>
+          <Logo size={28} />
+          <span>parallel</span>
+          <span className="pm-tag" style={{ marginLeft: 8 }}>Demo</span>
+        </span>
+        <Link href="/home" className="pm-btn sm">Try the demo</Link>
+      </div>
+
+      <section className="pm-hero" style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <h1>US shares, held in {NAMES[currency]}.</h1>
+        <p className="pm-lede" style={{ fontSize: 18 }}>
+          Invest in the S&amp;P 500 or US tech with your own currency, protected from currency swings. Then borrow against
+          what you hold, without selling.
         </p>
-        <div className="row">
-          <Link href="/try" className="btn">
-            Try the demo
-          </Link>
-          <Link href="/vaults" className="btn secondary">
-            See the vaults
-          </Link>
+        <div className="pm-row">
+          <Link href="/home" className="pm-btn">Try the demo</Link>
+          <span className="pm-small pm-muted">Test money on a test network. Nothing here is real.</span>
         </div>
       </section>
 
-      <section className="stack" style={{ gap: 20 }}>
-        <div className="page-head">
-          <h2>What a currency move does to your US shares</h2>
-          <p className="muted" style={{ maxWidth: "70ch" }}>
-            When your currency strengthens, the same US shares are worth less at home. Move the sliders to compare an
-            unhedged position with a hedged one.
-          </p>
+      <section className="pm-card" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 18 }}>
+        <h2 style={{ fontSize: 22 }}>What a currency move does to your US shares</h2>
+        <p className="pm-muted">
+          If the {SHORT[currency]} rises against the US dollar, the same shares are worth less at home. Move the slider and
+          assume share prices don&rsquo;t change.
+        </p>
+        <div className="pm-field">
+          <label htmlFor="rise">The {meta.code} rises {rise}%</label>
+          <input id="rise" className="pm-range" type="range" min={0} max={30} value={rise} onChange={(e) => setRise(Number(e.target.value))} />
         </div>
-        <Simulator compact />
-        <Link href="/simulator" className="small">
-          Open the full simulator with time horizons and hedge styles
-        </Link>
+        <div className="pm-grid">
+          <div className="pm-inner" style={{ padding: 16 }}>
+            <span className="pm-muted pm-small">{fmtMoney(start, meta.symbol)} without protection</span>
+            <strong className="num pm-neg" style={{ fontSize: 32, letterSpacing: -1 }}>{fmtMoney(without, meta.symbol)}</strong>
+          </div>
+          <div className="pm-inner" style={{ padding: 16 }}>
+            <span className="pm-muted pm-small">{fmtMoney(start, meta.symbol)} with protection</span>
+            <strong className="num pm-pos" style={{ fontSize: 32, letterSpacing: -1 }}>{fmtMoney(start, meta.symbol)}</strong>
+          </div>
+        </div>
+        <p className="pm-small pm-muted">
+          Before costs. Protection also gives up gains if the {SHORT[currency]} falls. Currency protection is simulated on
+          test contracts.
+        </p>
       </section>
 
-      <section className="how">
+      <section className="pm-steps">
         <div>
-          <h3>Deposit in your currency</h3>
-          <p className="muted">AUDD, AUDM, EURC or INR stablecoins go in. Everything is valued in your currency.</p>
+          <h3>Invest</h3>
+          <p className="pm-muted">Pay in your own stablecoin. We buy US shares and protect you from currency swings.</p>
         </div>
         <div>
-          <h3>Pick hedged or unhedged</h3>
-          <p className="muted">
-            Each strategy comes both ways. The hedged version offsets moves in your currency against the US dollar.
-          </p>
+          <h3>Borrow</h3>
+          <p className="pm-muted">Use your investment as security for a loan in your own currency.</p>
         </div>
         <div>
-          <h3>Borrow without selling</h3>
-          <p className="muted">
-            Post your vault shares as collateral and borrow your own currency. Hedged shares can support a larger loan.
-          </p>
+          <h3>Earn</h3>
+          <p className="pm-muted">Lend your currency to borrowers and earn interest.</p>
         </div>
-        <style>{`
-          .how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; border-top: 1px solid var(--line); padding-top: 32px; }
-          .how > div { display: grid; gap: 6px; align-content: start; }
-          @media (max-width: 760px) { .how { grid-template-columns: 1fr; gap: 20px; } }
-        `}</style>
       </section>
+
+      <p className="pm-small pm-muted">
+        Share prices can fall. Costs, rates and currency protection are illustrative and simulated on test contracts. Not
+        affiliated with any stablecoin issuer.
+      </p>
     </div>
   );
 }

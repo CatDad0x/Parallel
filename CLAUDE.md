@@ -5,7 +5,7 @@ Parallel Markets is a **testnet demo** protocol on Base Sepolia. Users deposit l
 Read `HANDOFF.md` first (context from the planning chat), then `SPEC.md` for the design (v0.3; §13 is the revision log) and `README.md` for deployment.
 
 ## Status
-**v0.4 product direction was agreed on 4 Nov 2026 (SPEC.md §14): hedged-only `pSPY`/`pUSTech`, 6 vaults, DEX-priced exits with deviation warnings, same-currency lending. It is design only; the code below is still v0.3.** Read §14 before changing contracts or UI.
+**v0.4 contracts were built on 5 Nov 2026 (SPEC.md §14, see §14.7): hedged-only `pSPY`/`pUSTech`, 6 vaults, 24/7 DEX-priced exits, deviation guard, 6 same-currency markets with back-tested LTVs. The web app is still v0.3 and will break for unhedged vaults until it is rebuilt (task C).** Read §14 before changing contracts or UI.
 
 All build phases are done and tested locally (contracts, lending, deploy script, keeper, web). Remaining: deploy to Base Sepolia with the owner's keys, host the keeper and web app, and record the demo walkthrough.
 
@@ -25,8 +25,8 @@ After changing any contract ABI, re-run `pnpm build:contracts`.
 |---|---|
 | `contracts/src/ParallelVault.sol` | ERC-4626 vault: tracked balances, NAV, entry/exit costs, async queue, rebalance, hedge sync, dilution fees, `skim` |
 | `contracts/src/OracleHub.sol` | Pyth reads, 18-dp normalisation, inverted FX, confidence check, overrides/shocks, market-hours modes |
-| `contracts/src/HedgeBook.sol` | Spot-based hedge simulation: short USD / long local, with carry |
-| `contracts/src/SimExchange.sol` | Oracle-priced venue with a spread; equity trades revert when the market is closed |
+| `contracts/src/HedgeBook.sol` | Onchain FX perp venue: vault hedges (short USD / long local) settle against a per-currency LP pool in real stablecoin, with carry, OI cap and LP reserve |
+| `contracts/src/SimExchange.sol` | Simulated DEX: index price ± adjustable drift ± spread; sells 24/7, buys need market open; fixed deviation-guard levels |
 | `contracts/src/ParallelRouter.sol` | Group-stable deposits/redeems, deposit-and-borrow, repay-all, interface-level borrow gate and opening-LTV cap |
 | `contracts/src/lending/` | Morpho oracle adapters (equity, vault share = previewRedeem) and `KinkedIrm` |
 | `contracts/src/testnet/DemoPyth.sol` | Keeper-pushed simulated prices (default deployment mode) |
@@ -38,17 +38,17 @@ After changing any contract ABI, re-run `pnpm build:contracts`.
 - **Price convention:** FX = USD per 1 local (18 dp). Equity = USD per token (18 dp). Stables 6 dp, equities and shares 18 dp.
 - **Tracked balances:** NAV never uses raw `balanceOf`. Every trade goes through `_buy`/`_sell`, and every cash movement updates `_cash`.
 - **Hedge rule:** `HedgeBook.adjust` settles the full MTM into cash, then reopens at the new notional and spot strike. A roll keeps the vault hedged.
-- **Hedge losses:** the vault sells equities (`_ensureCash`) before a loss is burned.
+- **Hedge losses:** the vault sells equities (`_ensureCash`) before a loss is paid into the FX pool. Hedge gains come from the LP pool (no mint/burn); a gain above pool liquidity is haircut.
 - **Costs:** entry = spread × invested fraction; exit = spread × equity/NAV. Previews must match execution exactly.
 - **Fees:** dilution only, with pending fee shares in `_effectiveSupply()`. No fee deduction in `totalAssets`.
 - **Queue:** escrow excluded from NAV; owner cancel; `min*` limits refund on miss. Not ERC-7540 compliant.
 - **Fail-closed** on stale prices while the market is open.
-- **Market-hours and opening-LTV limits are interface-level only.** Always disclose that.
+- **Collateral uses the index price; the DEX price is only a guard** (10% discount pauses borrow/liquidation). The opening-LTV cap is interface-level only. Always disclose that.
 - **UI compares cooldowns against chain time** (`useBlock`), not the browser clock.
 
 ## Open decisions
 - **Name:** "Parallel Markets" overlaps with existing finance companies (HANDOFF.md). Akash chose to proceed for the testnet demo.
-- **LTVs, fees, borrowing while US is closed, and loan-safety alerts:** see SPEC.md §14.4–14.6.
+- **Confirm the back-tested LTVs (§14.4), management-fee %, loan-safety alert levels and email/push alerts.** Borrowing is allowed 24/7 (decided 5 Nov).
 - **mAUDC:** AUDC is the AUDD issuer's company name. The token is deployed as "Mock AUDC (testnet)". Ask Akash whether to rename or drop it before presenting to the AUDD team.
 
 ## Toolchain notes

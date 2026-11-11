@@ -42,3 +42,26 @@ Never ask him to paste a private key into chat. Keys go in `contracts/.env`, `ke
 - **Local dev notes:** `pnpm` is installed at `~/.npm-global/bin` (add it and `~/.foundry/bin` to `PATH`). `web/.env.local` was created with anvil's public test keys for local use only. Local run: anvil, deploy with `KEEPER_ADDRESS` set to anvil account #1 (the keeper's default key), then the keeper and web app.
 - **Next:** back-test LTVs, then build the v0.4 contract changes (6 vaults, simulated DEX with adjustable drift, deviation guard, new markets), wire the new UI, then deploy to Base Sepolia. The wallet and funding steps for deployment are still pending.
 
+
+## Update, 5 Nov 2026 (Claude Code session)
+- **LTVs back-tested** (Yahoo daily data 2000-2026) and recorded in SPEC.md §14.4: pSPY 45% open / 60% liquidation, pUSTech 35% / 50%. Still marked "proposed".
+- **v0.4 contracts built and tested locally** (94 forge tests). See SPEC.md §14.7. Decisions made: borrowing allowed 24/7, Morpho interest fee 10%, guard pauses at a 10% DEX discount.
+- **Not done:** web app (still v0.3; unhedged `/try` option will break against v0.4 deployments), demo-controls slider, deploy to Base Sepolia (needs your wallet steps).
+- `packages/shared/deployments/31337.json` is still the old v0.3 local deployment; re-run the local deploy before using the web app with v0.4.
+
+## Update, 9 Nov 2026 (Claude Code session)
+- **Onchain FX hedge built.** `HedgeBook` is now a pool-backed FX perp venue. Vault hedges settle against per-currency LP pools funded with real mock stablecoin (no mint/burn). `lpDeposit` / `lpWithdraw`, a 5x open-interest cap, a 20% LP reserve and a gain haircut are in. See SPEC.md §14.7. 102 forge tests pass; local deploy verified (pools seeded, hedges open). `pnpm deploy:local` now needs `--gas-estimate-multiplier 300` (already in package.json).
+- **Not done:** web UI for LPs, keeper handling of pool capacity, deploying to Base Sepolia. A real mainnet hedge still needs a licensed counterparty or a live FX perp venue on Base.
+
+## Update, 10 Nov 2026 (Claude Code session)
+- **LP capital can't be sourced**, so the hedge is now mirrored on an existing onchain venue. Built: `IHedgeVenue`, `GTradeVenue` (gTrade adapter, USDC margin, EUR one leg, AUD two legs), `HedgeManager` (keeper-driven sync), `MockGTrade` (testnet stand-in, Base Sepolia has no gTrade), Deploy wiring, keeper `mirrorHedge` job. 115 forge tests expected (13 new in `HedgeMirror.t.sol`). Verified on a fresh local anvil deploy by driving sync, fulfil and confirm with `cast`.
+- **Not verified:** the keeper job end to end (local runs hit confirmation timeouts and stale prices), and every gTrade ABI detail (see SPEC §14.7). **Not built:** margin top-up, USDC to local-stable settlement, real gTrade event watching. Next real step: verify against gTrade's Arbitrum Sepolia testnet or a Base mainnet fork.
+- **Verified read-only (10 Nov 2026):** against gTrade on Base mainnet and Arbitrum Sepolia, `getTrade` returns the 15-field struct we use, Base pairs 21 (EUR/USD) and 110 (EUR/AUD) exist, and the USDC collateral index is 1 on Base (default fixed from 3). **Still unverified:** order placement itself (needs a funded testnet wallet: ask Akash first), minimum position size, fees on Base.
+
+## 11 Nov 2026: UI wired, keeper verified, research
+- **Web app rebuilt to the Claude Design canvas** ("Parallel markets redesign"): landing, Home, Invest, Portfolio (with Sell and the DEX-gap warnings), Borrow (with loan management), Earn, Advanced (price-gap slider, hedge status). New theme in `web/app/pm.css`, shell in `web/components/Shell.tsx`, shared hooks in `web/lib/pm.tsx`. Old v0.3 screens (`/try`, `/start`, `/vaults`, `/lend`, Header) are archived in `_archive/web-v03/`. Browser-tested locally on a v0.4 deploy: sign-in and test money, invest A$1,000, borrow A$300, lend A$500, amber sell warning at a 2% gap.
+- **Edge states built (11 Nov, later):** prices loading or stale (banner, grey placeholders, disabled "Waiting for prices" on Invest, Borrow and Sell; recovers by itself), test money failed (card with Try again), not enough balance ("Use A$X" and "Add test money"), US market closed (shows the next open in the viewer's time), repay-to-unlock hint on Sell, phone top bar. Browser-tested by forcing each state on the local chain.
+- **Not yet in the UI:** the design's currency-protection toggle (SPEC says hedged only, so it was left out); the Landing slider uses a simple 1/(1+x) estimate; the next-open time ignores holidays.
+- **Local login note:** the mock account does not survive a full page reload; navigate with the sidebar, or sign in again.
+- **Keeper verified end to end** on a fresh local anvil (`--block-time 1`): every job ran, `mirrorHedge` synced AUD and EUR to within 6 bps of target, INR skipped (no pair), zero errors.
+- **Research:** Morpho Blue exists at the canonical `0xBBBB…FFCb` on Base Sepolia (set `MORPHO_ADDRESS` in the deploy). Base has live tokenised stocks (Coinbase Tokenized Stocks, Ondo, xStocks) trading on Aerodrome and Uniswap, but no SPY token with verified deep liquidity yet. Lenders for our markets would come from a curated Morpho vault (Vault V2) or incentives.

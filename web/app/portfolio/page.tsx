@@ -1,252 +1,241 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useAccount, usePublicClient, useReadContracts } from "wagmi";
-import { decodeEventLog, parseAbiItem, type Address, type Hex } from "viem";
-import { morphoAbi, routerAbi, marketParams, CURRENCIES, type VaultInfo } from "@parallel/shared";
-import { deployment } from "@/lib/config";
-import { useCurrency } from "@/lib/currency";
-import { useFx, useVaultStats } from "@/lib/hooks";
-import { money, pct, signedMoney } from "@/lib/format";
+import { useState } from "react";
+import { useAccount, useReadContract } from "wagmi";
+import { vaultAbi } from "@parallel/shared";
+import { useBasis } from "@/lib/basis";
+import { useFx, useSteps, type VaultStats } from "@/lib/hooks";
+import { PricesLoading, PRODUCT_META, useLoans, useProducts, useWallet, userSharesValue, safety, lltvOf, Slash, Notice, fmtMoney, fmtSigned } from "@/lib/pm";
 import { PendingRequests } from "@/components/PendingRequests";
-
-const ev = {
-  deposit: parseAbiItem("event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)"),
-  withdraw: parseAbiItem("event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares)"),
-  settledD: parseAbiItem("event DepositSettled(uint256 indexed id, address indexed receiver, uint256 assets, uint256 shares)"),
-  settledR: parseAbiItem("event RedeemSettled(uint256 indexed id, address indexed receiver, uint256 shares, uint256 assets)"),
-  routed: parseAbiItem("event DepositedWith(address indexed user, address indexed vault, address token, uint256 amount, uint256 shares)"),
-  nav: parseAbiItem("event NavSnapshot(uint256 nav, uint256 navPerShare, uint256 equityValue, int256 hedgeMtm, uint256 cash, uint256 usdPerLocal, uint256 timestamp)"),
-};
-
-interface Basis {
-  net: number; // local currency deposited minus withdrawn
-  fx0?: number; // usdPerLocal at first deposit
-}
-
-/** Net contributions per vault from onchain events, plus the FX rate at the user's first deposit. */
-function useBasis(user?: Address) {
-  const client = usePublicClient();
-  const [basis, setBasis] = useState<Record<string, Basis>>({});
-  useEffect(() => {
-    if (!client || !user) return;
-    (async () => {
-      const latest = await client.getBlockNumber();
-      const start = latest > 60_000n ? latest - 60_000n : 0n;
-      const out: Record<string, Basis & { firstTx?: Hex; firstBlock?: bigint }> = {};
-      const add = (v: string, amt: number, tx?: Hex, block?: bigint) => {
-        const b = (out[v.toLowerCase()] ??= { net: 0 });
-        b.net += amt;
-        if (amt > 0 && tx && (b.firstBlock === undefined || (block ?? 0n) < b.firstBlock)) {
-          b.firstTx = tx;
-          b.firstBlock = block;
-        }
-      };
-      const vaults = deployment.vaults.map((v) => v.address);
-      for (let f = start; f <= latest; f += 9_000n) {
-        const to = f + 8_999n > latest ? latest : f + 8_999n;
-        const [d, w, sd, sr, r] = await Promise.all([
-          client.getLogs({ address: vaults, event: ev.deposit, args: { owner: user }, fromBlock: f, toBlock: to }),
-          client.getLogs({ address: vaults, event: ev.withdraw, args: { owner: user }, fromBlock: f, toBlock: to }),
-          client.getLogs({ address: vaults, event: ev.settledD, args: { receiver: user }, fromBlock: f, toBlock: to }),
-          client.getLogs({ address: vaults, event: ev.settledR, args: { receiver: user }, fromBlock: f, toBlock: to }),
-          client.getLogs({ address: deployment.router, event: ev.routed, args: { user }, fromBlock: f, toBlock: to }),
-        ]);
-        // Router deposits emit Deposit(owner=user) and DepositedWith; count router flows once via DepositedWith.
-        d.filter((l) => l.args.sender!.toLowerCase() !== deployment.router.toLowerCase()).forEach((l) =>
-          add(l.address, Number(l.args.assets) / 1e6, l.transactionHash, l.blockNumber),
-        );
-        r.forEach((l) => add(l.args.vault!, Number(l.args.amount) / 1e6, l.transactionHash, l.blockNumber));
-        sd.forEach((l) => add(l.address, Number(l.args.assets) / 1e6, l.transactionHash, l.blockNumber));
-        w.forEach((l) => add(l.address, -Number(l.args.assets) / 1e6));
-        sr.forEach((l) => add(l.address, -Number(l.args.assets) / 1e6));
-      }
-      // FX at first deposit = the NavSnapshot emitted in that transaction.
-      await Promise.all(
-        Object.entries(out).map(async ([v, b]) => {
-          if (!b.firstTx) return;
-          const rc = await client.getTransactionReceipt({ hash: b.firstTx });
-          for (const lg of rc.logs) {
-            if (lg.address.toLowerCase() !== v) continue;
-            try {
-              const dec = decodeEventLog({ abi: [ev.nav], data: lg.data, topics: lg.topics });
-              b.fx0 = Number(dec.args.usdPerLocal) / 1e18;
-            } catch {}
-          }
-        }),
-      );
-      setBasis(out);
-    })().catch(() => {});
-  }, [client, user]);
-  return basis;
-}
 
 export default function Portfolio() {
   const { address } = useAccount();
-  const { currency, meta } = useCurrency();
-  const fx = useFx();
-  const { stats } = useVaultStats(deployment.vaults);
+  const { symbol, refetchBalance } = useWallet();
+  const { stats, refetch } = useProducts();
+  const { loans } = useLoans();
   const basis = useBasis(address);
-
-  // Vault shares posted as Morpho collateral still belong to the user.
-  const vaultMarkets = deployment.markets.filter((m) => deployment.vaults.some((v) => v.address === m.collateralToken));
-  const allMarkets = deployment.markets;
-  const { data: posData } = useReadContracts({
-    contracts: allMarkets.flatMap((m) => [
-      { address: deployment.morpho, abi: morphoAbi, functionName: "position", args: [m.id, address!] },
-      { address: deployment.router, abi: routerAbi, functionName: "healthFactor", args: [marketParams(m), address!] },
-    ]),
-    query: { enabled: !!address },
-  });
-  const posOf = (i: number) => posData?.[i * 2]?.result as readonly [bigint, bigint, bigint] | undefined;
-
-  const toHome = (v: number, from: string) => {
-    if (from === currency) return v;
-    const a = fx[from]?.usdPerLocal;
-    const b = fx[currency]?.usdPerLocal;
-    return a && b ? (v * a) / b : NaN;
-  };
+  const fx = useFx();
+  const [selling, setSelling] = useState<VaultStats | undefined>();
 
   const rows = stats
     .map((s) => {
-      const mIdx = allMarkets.findIndex((m) => m.collateralToken === s.info.address);
-      const collateralShares = mIdx >= 0 ? posOf(mIdx)?.[2] ?? 0n : 0n;
-      const shares = Number(s.userShares + collateralShares) / 1e18;
-      const value = shares * s.navPerShare;
+      const collateral = loans.find((l) => l.market.collateralToken === s.info.address)?.collateralShares ?? 0n;
+      const locked = loans.some((l) => l.market.collateralToken === s.info.address && l.borrowed > 0);
+      const shares = Number(s.userShares + collateral) / 1e18;
+      const value = userSharesValue(s, collateral);
       const b = basis[s.info.address.toLowerCase()];
       const pnl = b ? value - b.net : NaN;
-      // Estimated attribution: equity sleeve (user's share) re-valued at the starting FX rate.
       const userEq = s.supply > 0 ? (shares / s.supply) * s.equityValue : 0;
       const fxNow = fx[s.info.currency]?.usdPerLocal;
       const fxEffect = b?.fx0 && fxNow ? userEq * (1 - fxNow / b.fx0) : 0;
-      const hedge = s.info.hedged && s.supply > 0 ? (shares / s.supply) * s.hedgeMtm : 0;
-      const equityEffect = Number.isFinite(pnl) ? pnl - fxEffect - hedge : NaN;
-      return { s, shares, value, pnl, fxEffect, hedge, equityEffect, collateralShares, b };
+      const hedge = s.supply > 0 ? (shares / s.supply) * s.hedgeMtm : 0;
+      const shareEffect = Number.isFinite(pnl) ? pnl - fxEffect - hedge : NaN;
+      return { s, shares, value, locked, collateral, pnl, fxEffect, hedge, shareEffect, put: b?.net ?? NaN };
     })
     .filter((r) => r.shares > 0);
 
-  const totalHome = rows.reduce((a, r) => a + toHome(r.value, r.s.info.currency), 0);
-  const pnlHome = rows.reduce((a, r) => a + (Number.isFinite(r.pnl) ? toHome(r.pnl, r.s.info.currency) : 0), 0);
-  const debts = allMarkets
-    .map((m, i) => ({ m, pos: posOf(i), hf: posData?.[i * 2 + 1]?.result as bigint | undefined }))
-    .filter((x) => x.pos && x.pos[1] > 0n);
-
-  if (!address)
-    return (
-      <div className="page">
-        <h1>Portfolio</h1>
-        <p className="notice">Sign in to see your positions.</p>
-      </div>
-    );
+  const total = rows.reduce((a, r) => a + r.value, 0);
+  const gain = rows.reduce((a, r) => a + (Number.isFinite(r.pnl) ? r.pnl : 0), 0);
+  const put = rows.reduce((a, r) => a + (Number.isFinite(r.put) ? r.put : 0), 0);
+  const parts: [string, number][] = [
+    ["Share performance", rows.reduce((a, r) => a + (Number.isFinite(r.shareEffect) ? r.shareEffect : 0), 0)],
+    ["Currency effect", rows.reduce((a, r) => a + r.fxEffect, 0)],
+    ["Hedge result", rows.reduce((a, r) => a + r.hedge, 0)],
+  ];
+  const maxAbs = Math.max(1, ...parts.map((p) => Math.abs(p[1])));
+  const activeLoans = loans.filter((l) => l.borrowed > 0);
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <h1>Portfolio</h1>
-        <p className="muted">Everything shown in {currency}. Positions in other currencies are converted at today&rsquo;s rate.</p>
-      </div>
+    <>
+      <section aria-label="Investment value" style={{ display: "flex", flexWrap: "wrap", borderBottom: "1px solid var(--pm-line)" }}>
+        <div style={{ flex: "1 1 320px", display: "grid", gap: 10, padding: "36px 32px 30px", alignContent: "start" }}>
+          <span className="pm-eyebrow"><Slash />Your investments are worth</span>
+          <strong className="pm-big num">{fmtMoney(total, symbol)}</strong>
+          <span className="pm-muted">
+            <strong className={gain >= 0 ? "pm-pos" : "pm-neg"}>{fmtSigned(gain, symbol)}</strong> since you started · you put in {fmtMoney(put, symbol)}
+          </span>
+        </div>
+        <div style={{ flex: "1 1 380px", display: "grid", gap: 4, padding: "30px 32px", borderLeft: "1px solid var(--pm-line)", background: "#fff", alignContent: "start" }}>
+          <span style={{ fontSize: 13, fontWeight: 700, paddingBottom: 6 }}>Where the {fmtSigned(gain, symbol)} came from</span>
+          {parts.map(([l, v]) => (
+            <div key={l} style={{ display: "grid", gridTemplateColumns: "150px minmax(0,1fr) 76px", alignItems: "center", gap: 12, minHeight: 34 }}>
+              <span className="pm-muted" style={{ fontSize: 13 }}>{l}</span>
+              <div className="pm-bar" aria-hidden="true">
+                <i style={{ width: `${(Math.abs(v) / maxAbs) * 50}%`, ...(v >= 0 ? { left: "50%", background: "var(--pm-accent)" } : { right: "50%", background: "#c98a7e" }) }} />
+              </div>
+              <strong className={`num ${v >= 0 ? "pm-pos" : "pm-neg"}`} style={{ textAlign: "right", fontSize: 13 }}>{fmtSigned(v, symbol)}</strong>
+            </div>
+          ))}
+          <span className="pm-small" style={{ color: "var(--pm-faint)", paddingTop: 8 }}>
+            This is an estimate. The hedge result offsets most of the currency effect. That&rsquo;s currency protection doing its job.
+          </span>
+        </div>
+      </section>
 
-      <div className="row" style={{ gap: 48 }}>
-        <div>
-          <div className="small muted">Total value</div>
-          <div className="big">{money(totalHome, meta.symbol)}</div>
-        </div>
-        <div>
-          <div className="small muted">Gain or loss</div>
-          <div className={`big ${pnlHome >= 0 ? "pos" : "neg"}`} style={{ fontSize: "1.6rem" }}>
-            {signedMoney(pnlHome, meta.symbol)}
-          </div>
-        </div>
-      </div>
-
-      {rows.length === 0 ? (
-        <div className="panel quiet stack">
-          <p>You don&rsquo;t hold any vault shares yet.</p>
-          <div>
-            <Link href="/vaults" className="btn">Choose a vault</Link>
-          </div>
-        </div>
-      ) : (
-        <section className="stack">
-          <h2>Investments</h2>
-          <div className="table-scroll">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Vault</th>
-                  <th className="num">Value</th>
-                  <th className="num">Gain or loss</th>
-                  <th className="num">From shares</th>
-                  <th className="num">From currency</th>
-                  <th className="num">From hedge</th>
-                </tr>
-              </thead>
+      <section className="pm-pad pm-sec" style={{ paddingBottom: 8 }}>
+        <h2><Slash />What you own</h2>
+        <div className="pm-card pm-table-wrap">
+          {rows.length === 0 ? (
+            <div style={{ padding: 24, display: "grid", gap: 12 }}>
+              <p className="pm-muted">You don&rsquo;t own any investments yet.</p>
+              <div><Link href="/invest" className="pm-btn sm">Start investing</Link></div>
+            </div>
+          ) : (
+            <table className="pm-table">
+              <thead><tr><th>Investment</th><th>Protection</th><th className="r">Value</th><th className="r">Gain</th><th /></tr></thead>
               <tbody>
-                {rows.map((r) => {
-                  const sym = CURRENCIES.find((c) => c.code === r.s.info.currency)!.symbol;
-                  return (
-                    <tr key={r.s.info.address}>
-                      <td>
-                        <Link href={`/vaults/${r.s.info.address}`}>{r.s.info.name}</Link>
-                        {r.collateralShares > 0n && <div className="hint">Includes shares posted as loan collateral</div>}
-                      </td>
-                      <td className="num">{money(r.value, sym)}</td>
-                      <td className={`num ${r.pnl >= 0 ? "pos" : "neg"}`}>
-                        {signedMoney(r.pnl, sym)}
-                        <div className="hint">{r.b?.net ? pct((r.pnl / r.b.net) * 100, 2, true) : ""}</div>
-                      </td>
-                      <td className="num">{signedMoney(r.equityEffect, sym)}</td>
-                      <td className="num">{signedMoney(r.fxEffect, sym)}</td>
-                      <td className="num">{r.s.info.hedged ? signedMoney(r.hedge, sym) : "—"}</td>
-                    </tr>
-                  );
-                })}
+                {rows.map((r) => (
+                  <tr key={r.s.info.address}>
+                    <td>
+                      <strong style={{ fontSize: 15 }}>{PRODUCT_META[r.s.info.strategy].name}</strong>{" "}
+                      <span className="pm-small" style={{ color: "var(--pm-faint)" }}>{r.s.info.symbol}</span>
+                      <div className="pm-small pm-muted num">{r.shares.toLocaleString("en-AU", { maximumFractionDigits: 2 })} units</div>
+                    </td>
+                    <td>
+                      Currency protected
+                      {r.locked && <div className="pm-small" style={{ marginTop: 4, padding: "1px 7px", borderRadius: 4, background: "var(--pm-warn-bg)", color: "var(--pm-warn-text)", display: "inline-block", marginLeft: 6 }}>Securing your loan</div>}
+                    </td>
+                    <td className="r num"><strong>{fmtMoney(r.value, symbol)}</strong></td>
+                    <td className={`r num ${r.pnl >= 0 ? "pm-pos" : "pm-neg"}`}>{Number.isFinite(r.pnl) && r.put ? `${r.pnl >= 0 ? "+" : "−"}${Math.abs((r.pnl / r.put) * 100).toFixed(1)}%` : "—"}</td>
+                    <td className="r">
+                      {r.s.userShares === 0n && r.locked && (
+                        <div className="pm-small pm-muted" style={{ marginBottom: 6 }}>Securing your loan. <Link href="/borrow" className="pm-link">Repay to unlock</Link></div>
+                      )}
+                      <span className="pm-row" style={{ justifyContent: "flex-end", gap: 6 }}>
+                        <button className="pm-btn sec sm" disabled={r.s.userShares === 0n} onClick={() => setSelling(r.s)}>
+                          {r.s.userShares === 0n ? "Locked" : "Sell"}
+                        </button>
+                        <Link href="/invest" className="pm-btn sec sm">Buy</Link>
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-          </div>
-          <p className="hint">
-            The split is an estimate. &ldquo;From currency&rdquo; re-values your share of the equities at the exchange
-            rate on your first deposit. &ldquo;From hedge&rdquo; is the unrealised hedge result; realised hedge gains or
-            losses already sit in the vault&rsquo;s cash. &ldquo;From shares&rdquo; is the remainder, including fees and
-            spread.
-          </p>
-        </section>
+          )}
+        </div>
+      </section>
+
+      {selling && (
+        <SellPanel
+          s={selling}
+          symbol={symbol}
+          onClose={() => setSelling(undefined)}
+          onDone={() => {
+            refetch();
+            refetchBalance();
+          }}
+        />
       )}
 
-      {debts.length > 0 && (
-        <section className="stack">
-          <h2>Loans</h2>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Market</th>
-                <th className="num">Health</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {debts.map((d) => {
-                const hf = d.hf ? Number(d.hf) / 1e18 : NaN;
-                return (
-                  <tr key={d.m.id}>
-                    <td>{d.m.label}</td>
-                    <td className={`num ${hf < 1.1 ? "neg" : ""}`}>{Number.isFinite(hf) ? hf.toFixed(2) : "…"}</td>
-                    <td className="num"><Link href="/borrow">Manage</Link></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      <div className="pm-pad pm-grid" style={{ paddingTop: 16 }}>
+        <section className="pm-panel" aria-labelledby="h-loan">
+          <div className="pm-row pm-spread"><h2 id="h-loan" style={{ fontSize: 16 }}><Slash /> Your loan</h2></div>
+          {activeLoans.length === 0 ? (
+            <p className="pm-muted">You haven&rsquo;t borrowed anything. <Link href="/borrow" className="pm-link">See how much you could borrow</Link></p>
+          ) : (
+            activeLoans.map((l) => {
+              const sf = safety(l.ltv, lltvOf(l.market));
+              return (
+                <div key={l.market.id} style={{ display: "grid", gap: 10 }}>
+                  <div className="pm-row pm-spread">
+                    <div style={{ display: "grid" }}><span className="pm-small pm-muted">Borrowed</span><strong className="num" style={{ fontSize: 20 }}>{fmtMoney(l.borrowed, symbol, 2)}</strong></div>
+                    <div style={{ display: "grid" }}><span className="pm-small pm-muted">Safety</span><strong className={sf.level === 0 ? "pm-pos" : "pm-neg"}>{sf.label}</strong></div>
+                    <Link href="/borrow" className="pm-btn sec sm">Manage loan</Link>
+                  </div>
+                  <span className="pm-small pm-muted">Secured by {l.strategy ? PRODUCT_META[l.strategy].name : "your shares"}</span>
+                </div>
+              );
+            })
+          )}
         </section>
-      )}
+        <section className="pm-panel">
+          <h2 style={{ fontSize: 16 }}><Slash /> Waiting for the market to open</h2>
+          {stats.length > 0 ? stats.map((s) => <PendingRequests key={s.info.address} vault={s.info.address} />) : null}
+          <p className="pm-small pm-muted">Orders placed while US markets are closed appear here until they go through.</p>
+        </section>
+      </div>
+      <p className="pm-small pm-muted pm-pad" style={{ paddingTop: 0 }}>
+        All values in your currency. Share prices can fall. Currency protection is simulated; figures are illustrative.
+      </p>
+    </>
+  );
+}
 
-      {stats.length > 0 && (
-        <section className="stack" style={{ maxWidth: 460 }}>
-          {deployment.vaults.map((v: VaultInfo) => <PendingRequests key={v.address} vault={v.address} />)}
-        </section>
-      )}
-      {vaultMarkets.length === 0 && null}
-    </div>
+const LEVELS = ["", "amber", "red", "red"] as const;
+
+function SellPanel({ s, symbol, onClose, onDone }: { s: VaultStats; symbol: string; onClose: () => void; onDone: () => void }) {
+  const { address } = useAccount();
+  const steps = useSteps();
+  const [pctSel, setPctSel] = useState(100);
+  const [ack, setAck] = useState(false);
+  const shares = (s.userShares * BigInt(pctSel)) / 100n;
+  const { data: quote } = useReadContract({
+    address: s.info.address, abi: vaultAbi, functionName: "redeemQuote", args: [shares],
+    query: { enabled: shares > 0n },
+  });
+  const q = quote as readonly [bigint, bigint, bigint, number] | undefined;
+  const atDex = q ? Number(q[0]) / 1e6 : 0;
+  const atIndex = q ? Number(q[1]) / 1e6 : 0;
+  const gap = q ? Number(q[2]) / 100 : 0;
+  const level = q ? Number(q[3]) : 0;
+  const minOut = q ? (q[0] * 995n) / 1000n : 0n;
+
+  const sellNow = async () => {
+    if (!address) return;
+    const ok = await steps.run(
+      [{ label: "Selling", address: s.info.address, abi: vaultAbi, functionName: "redeem", args: [shares, address, address] }],
+      `Sold. ${fmtMoney(atDex, symbol, 2)} is on its way to your balance.`,
+    );
+    if (ok) onDone();
+  };
+  const wait = async () => {
+    if (!address) return;
+    const ok = await steps.run(
+      [{ label: "Placing order", address: s.info.address, abi: vaultAbi, functionName: "requestRedeem", args: [shares, address, minOut] }],
+      "Order placed. It goes through when US markets open.",
+    );
+    if (ok) onDone();
+  };
+
+  return (
+    <section className="pm-pad" aria-label="Sell" style={{ paddingTop: 8 }}>
+      <div className="pm-panel" style={{ maxWidth: 560 }}>
+        <div className="pm-row pm-spread">
+          <h2 style={{ fontSize: 18 }}>Sell {PRODUCT_META[s.info.strategy].name}</h2>
+          <button className="pm-link" onClick={onClose}>Close</button>
+        </div>
+        <div className="pm-row" style={{ flexWrap: "nowrap" }}>
+          {[25, 50, 100].map((p) => (
+            <button key={p} className="pm-chip" style={pctSel === p ? undefined : { background: "#eef2f6" }} aria-pressed={pctSel === p} onClick={() => { setPctSel(p); setAck(false); }}>{p === 100 ? "All" : `${p}%`}</button>
+          ))}
+        </div>
+        {shares > 0n && !q && <PricesLoading />}
+        <div className="pm-inner">
+          <div className="pm-line"><span className="pm-muted">You receive</span><strong className="num" style={{ fontSize: 18 }}>{fmtMoney(atDex, symbol, 2)}</strong></div>
+          <div className="pm-line"><span className="pm-muted">At the market price</span><span className="num">{fmtMoney(atIndex, symbol, 2)}</span></div>
+          <div className="pm-line"><span className="pm-muted">Gap</span><span className={`num ${level >= 1 ? "pm-neg" : ""}`}>{gap.toFixed(2)}%</span></div>
+        </div>
+        {LEVELS[level] === "amber" && (
+          <Notice>The exchange price is {gap.toFixed(1)}% below the market price. You can sell now, or wait until US markets open.</Notice>
+        )}
+        {LEVELS[level] === "red" && (
+          <>
+            <Notice tone="red">The exchange price is {gap.toFixed(1)}% below the market price. If you sell now you&rsquo;ll receive about {gap.toFixed(1)}% less than usual.</Notice>
+            <label className="pm-row" style={{ gap: 8, fontSize: 13 }}>
+              <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+              I accept receiving about {gap.toFixed(1)}% less
+            </label>
+          </>
+        )}
+        <div className="pm-row">
+          <button className="pm-btn" disabled={steps.running || shares === 0n || !q || (level >= 2 && !ack)} onClick={sellNow}>{steps.running ? `${steps.label}…` : "Sell now"}</button>
+          {level >= 1 && <button className="pm-btn sec" disabled={steps.running} onClick={wait}>Wait for the market to open</button>}
+        </div>
+        {steps.error && <Notice tone="red">{steps.error}</Notice>}
+        {steps.done && <Notice tone="ok">{steps.done}</Notice>}
+      </div>
+    </section>
   );
 }
