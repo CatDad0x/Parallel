@@ -1,0 +1,59 @@
+{
+  "chainId": 84532,
+  "demoPyth": true,
+  "admin": "0x4E643f72f8DE6744c0F64D0095B7B108d7295951",
+  "keeper": "0x4E643f72f8DE6744c0F64D0095B7B108d7295951",
+  "pyth": "0xFD910A2c5353d6E6472ed5953639E8eDF220138C",
+  "oracleHub": "0xFfe4f3fe7f7ccb76925f89fBf2763e07a6d10790",
+  "exchange": "0x5d3659aE2682f6ce9a7c3639E26c622eEed5f466",
+  "hedgeBook": "0xC7A9dBf55C26935bBB0C7E4706f625d188390f10",
+  "faucet": "0x935aCE65c92b8a907d4278F5190375eBF0b9dA79",
+  "factory": "0x83cd3FaBB3620bAb287a7F30Aa8866F594fC6124",
+  "morpho": "0x58bF4d8952Dc55B8b4f06BE37E7424767658f118",
+  "irm": "0x3D988a192B6bB58698f568F094886E150B012178",
+  "router": "0xb77100341E2357430F1C200AA5bA72d2749C5654",
+  "hedgeUsdc": "0x6Cea1e52984250DA5Fd6807094e6E6fCb01fE323",
+  "gtrade": "0xfA29B706E37E6E423fAd8Ce032D0C2B60785D65b",
+  "hedgeVenue": "0xbE70E03e63B5bC4eC003B28709bA712Eb57d0BE0",
+  "hedgeManager": "0x68e9e4e377e3c8845E2F8Ca07BBC13A668cf2b71",
+  "tokens": [
+    {"address": "0x1263d085bef5937c457e50714676333fe8B27cb7", "symbol": "mAUDD", "name": "Mock AUDD (testnet)", "decimals": 6, "kind": "stable", "currency": "AUD"},
+    {"address": "0x55065B73190341680099550f77d12631568120aA", "symbol": "mAUDM", "name": "Mock AUDM (testnet)", "decimals": 6, "kind": "stable", "currency": "AUD"},
+    {"address": "0x5390623DD3aebcc347057b10ee15Bf712142D967", "symbol": "mAUDC", "name": "Mock AUDC (testnet)", "decimals": 6, "kind": "stable", "currency": "AUD"},
+    {"address": "0x5F41f94640c1A44620f4A627AF68ad9219BD2a3a", "symbol": "mEURC", "name": "Mock EURC (testnet)", "decimals": 6, "kind": "stable", "currency": "EUR"},
+    {"address": "0x12Aa3eE9d9D70866014636171E96cDE951E001E0", "symbol": "mINR", "name": "Mock INR (testnet)", "decimals": 6, "kind": "stable", "currency": "INR"},
+    {"address": "0xBD0d6FB3DF0038F62bBaCf2967368f6e603d742e", "symbol": "mSPY", "name": "Mock S&P 500 ETF (testnet)", "decimals": 18, "kind": "equity", "currency": "USD"},
+    {"address": "0xe577ac12a11d6d9dC173e2d33390a5D9dA76c5ff", "symbol": "mAAPL", "name": "Mock Apple (testnet)", "decimals": 18, "kind": "equity", "currency": "USD"},
+    {"address": "0xB7Bf6a11CDCAE3e11247D084A08D43C98044E128", "symbol": "mMSFT", "name": "Mock Microsoft (testnet)", "decimals": 18, "kind": "equity", "currency": "USD"},
+    {"address": "0x722680D243827b41e94244E7aaF9487818f1B0a9", "symbol": "mNVDA", "name": "Mock NVIDIA (testnet)", "decimals": 18, "kind": "equity", "currency": "USD"},
+    {"address": "0xE554F2923eD423e8e54B52243e2714AcaF7C2436", "symbol": "mAMZN", "name": "Mock Amazon (testnet)", "decimals": 18, "kind": "equity", "currency": "USD"},
+    {"address": "0x1063Dde47af65b9443699037683e13B94D9C0a08", "symbol": "mGOOGL", "name": "Mock Alphabet (testnet)", "decimals": 18, "kind": "equity", "currency": "USD"}
+  ],
+  "feeds": [
+    {"name": "SPY", "key": "0x000000000000000000000000bd0d6fb3df0038f62bbacf2967368f6e603d742e", "pythId": "0xc86b2b28a4ac0bf6f6cd35f4d4005630e6517cc934a6c83858fb3afd9652efcd"},
+    {"name": "AAPL", "key": "0x000000000000000000000000e577ac12a11d6d9dc173e2d33390a5d9da76c5ff", "pythId": "0x5b12432dc31c5d54ad2d0bdb6b47c00c76fedf418234ccf456145f9f8d9dae8d"},
+    {"name": "MSFT", "key": "0x000000000000000000000000b7bf6a11cdcae3e11247d084a08d43c98044e128", "pythId": "0xfc8a4f42433177d81735dccc3d4cec8dd49b1d2a4a76b36fe2aef92647a483b8"},
+    {"name": "NVDA", "key": "0x000000000000000000000000722680d243827b41e94244e7aaf9487818f1b0a9", "pythId": "0x48793e427604ba220a60ffd54ca960da667f8cd604dc2459f662e07c2bb5ac36"},
+    {"name": "AMZN", "key": "0x000000000000000000000000e554f2923ed423e8e54b52243e2714acaf7c2436", "pythId": "0x0e737da53dcbb349a317db0d05da55d108e821d992e1c6f18b5a0edacfe2fe98"},
+    {"name": "GOOGL", "key": "0x0000000000000000000000001063dde47af65b9443699037683e13b94d9c0a08", "pythId": "0x3c50b4efcf2875ca0be6f3154a09c6554d7984092803a119f867bda4f5e42ce8"},
+    {"name": "AUD", "key": "0x4155440000000000000000000000000000000000000000000000000000000000", "pythId": "0xb9ccbd00d233ee4c5cf15bb9d5961c591e11da14a66d7a76e12a996f20d98323"},
+    {"name": "EUR", "key": "0x4555520000000000000000000000000000000000000000000000000000000000", "pythId": "0xe0c8952f065f9e414a5c81b3c65bc6ba69464459e38747b07e7a4c17dcf496f2"},
+    {"name": "INR", "key": "0x494e520000000000000000000000000000000000000000000000000000000000", "pythId": "0xc42bba7e58dafba7978e0de99bfad95968c79cd5469252b024b09eb8153daf6d"}
+  ],
+  "vaults": [
+    {"address": "0xEf407B42bD94d44C2DF76C3CcCb170dea991F3a4", "name": "Parallel S&P 500 (AUD)", "symbol": "pSPY-AUD", "currency": "AUD", "strategy": "index", "hedged": true},
+    {"address": "0xEBF9E3a167eE1D20E48e8E0C235c36BfE84e3C4D", "name": "Parallel US Tech (AUD)", "symbol": "pUSTech-AUD", "currency": "AUD", "strategy": "basket", "hedged": true},
+    {"address": "0xe925f018c2c7Ab2106B0F66df118402aec174bE2", "name": "Parallel S&P 500 (EUR)", "symbol": "pSPY-EUR", "currency": "EUR", "strategy": "index", "hedged": true},
+    {"address": "0x17Bd0B6B9652d69e8E0de1D36735Afad6243d72C", "name": "Parallel US Tech (EUR)", "symbol": "pUSTech-EUR", "currency": "EUR", "strategy": "basket", "hedged": true},
+    {"address": "0x70BA71d9668487db82F65B31364EBCaaFFf879fb", "name": "Parallel S&P 500 (INR)", "symbol": "pSPY-INR", "currency": "INR", "strategy": "index", "hedged": true},
+    {"address": "0x9EE28afc836821A3DA030E7457c9254E8C8Aaa41", "name": "Parallel US Tech (INR)", "symbol": "pUSTech-INR", "currency": "INR", "strategy": "basket", "hedged": true}
+  ],
+  "markets": [
+    {"id": "0xb6e99ccb06fd16eb3198bd2fa74c9af004844fcf4cfad17f9f01752cfb81f12a", "label": "pSPY-AUD / mAUDD", "loanToken": "0x1263d085bef5937c457e50714676333fe8B27cb7", "collateralToken": "0xEf407B42bD94d44C2DF76C3CcCb170dea991F3a4", "oracle": "0x479eD05A059F419A6F6E27eF094E7507931Ab25e", "irm": "0x3D988a192B6bB58698f568F094886E150B012178", "lltv": "600000000000000000", "maxOpenLtv": "450000000000000000"},
+    {"id": "0x632a3030c60d427bbfb905202fbbe129e4999f04cae28899777566b8aa30940b", "label": "pUSTech-AUD / mAUDD", "loanToken": "0x1263d085bef5937c457e50714676333fe8B27cb7", "collateralToken": "0xEBF9E3a167eE1D20E48e8E0C235c36BfE84e3C4D", "oracle": "0xdf5C80458eA6fEEDDe519348Ed2c019F80426458", "irm": "0x3D988a192B6bB58698f568F094886E150B012178", "lltv": "500000000000000000", "maxOpenLtv": "350000000000000000"},
+    {"id": "0x6138052775bb95d91bb2cd680d711e4bcb514b3ce36811a85e961eeaf65df9af", "label": "pSPY-EUR / mEURC", "loanToken": "0x5F41f94640c1A44620f4A627AF68ad9219BD2a3a", "collateralToken": "0xe925f018c2c7Ab2106B0F66df118402aec174bE2", "oracle": "0x9499E8371689d2151F4A8D14aF670DD28A3C7B48", "irm": "0x3D988a192B6bB58698f568F094886E150B012178", "lltv": "600000000000000000", "maxOpenLtv": "450000000000000000"},
+    {"id": "0xf9101d624b1189fb2219f939bedb7fa55b1c41f12c7880f53f67cae5f0d38755", "label": "pUSTech-EUR / mEURC", "loanToken": "0x5F41f94640c1A44620f4A627AF68ad9219BD2a3a", "collateralToken": "0x17Bd0B6B9652d69e8E0de1D36735Afad6243d72C", "oracle": "0xDA257710E8f0b1080167188F0fBAA3ab8F64AE7B", "irm": "0x3D988a192B6bB58698f568F094886E150B012178", "lltv": "500000000000000000", "maxOpenLtv": "350000000000000000"},
+    {"id": "0x7e7b4f72bfdea6e77719588c696b2c90aeadb69bf41630c6900360505dea9fae", "label": "pSPY-INR / mINR", "loanToken": "0x12Aa3eE9d9D70866014636171E96cDE951E001E0", "collateralToken": "0x70BA71d9668487db82F65B31364EBCaaFFf879fb", "oracle": "0x5782cf09dd99c0D94811c10C7aacf54d57b17298", "irm": "0x3D988a192B6bB58698f568F094886E150B012178", "lltv": "600000000000000000", "maxOpenLtv": "450000000000000000"},
+    {"id": "0xa6ccc8b021259611375cb469349d604fd40107efb4160b9b3c510e53e843a617", "label": "pUSTech-INR / mINR", "loanToken": "0x12Aa3eE9d9D70866014636171E96cDE951E001E0", "collateralToken": "0x9EE28afc836821A3DA030E7457c9254E8C8Aaa41", "oracle": "0x695a0e01263056bAF0ce67404D14095B16acca93", "irm": "0x3D988a192B6bB58698f568F094886E150B012178", "lltv": "500000000000000000", "maxOpenLtv": "350000000000000000"}
+  ]
+}

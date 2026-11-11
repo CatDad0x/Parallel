@@ -1,5 +1,6 @@
 import type { Address, Hex } from "viem";
 import local from "../deployments/31337.json";
+import chain84532 from "../deployments/84532.json";
 
 export type Currency = "AUD" | "EUR" | "INR";
 
@@ -66,6 +67,7 @@ export interface Deployment {
 /** Known deployments by chain id. Base Sepolia (84532) is added after the first deploy. */
 export const deployments: Record<number, Deployment> = {
   31337: local as Deployment,
+  84532: chain84532 as Deployment,
 };
 
 export function getDeployment(chainId: number): Deployment {

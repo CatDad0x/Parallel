@@ -72,3 +72,8 @@ Never ask him to paste a private key into chat. Keys go in `contracts/.env`, `ke
 - **UI:** Home liquidation notice built (`web/lib/liquidations.ts`). Home dashboard (chart, activity log, sparklines) and Portfolio chart/columns ported from the redesign PRs (now closed) into the current app. `NEXT_PUBLIC_DEPLOY_BLOCK` bounds event scans. Local fork needs `NEXT_PUBLIC_CHAIN_ID=84532 NEXT_PUBLIC_MOCK_WALLET=1 NEXT_PUBLIC_DEPLOY_BLOCK=<block>`.
 - **Open:** warm "Paper Trade" restyle via Claude Design (brief in the session folder); safety meter says "Comfortable" at the maximum opening LTV and thresholds are still not agreed; Privy email login untested (needs an app ID); real Base Sepolia deploy needs a fresh test-only wallet, ETH and hosting.
 - Folder renamed to `Parallel`; GitHub repo renamed to `Parallel`.
+
+## 11 Nov 2026: Base Sepolia deployed
+- Deployed to **Base Sepolia (84532)** from one test wallet `0x4E643f72f8DE6744c0F64D0095B7B108d7295951` (admin, keeper and relayer). 177 transactions, all succeeded, cost about 0.0003 ETH. Blocks 57248012 to 57248916. Addresses in `packages/shared/deployments/84532.json`. Simulated prices (DemoPyth), own Morpho copy, mock gTrade. Not verified on Basescan (no API key).
+- **Deploy block for the keeper (`DEPLOY_BLOCK`) and the site (`NEXT_PUBLIC_DEPLOY_BLOCK`): 57248012.**
+- Still to do: host the keeper (Railway or Render) and the website (Vercel) with the wallet's key in the hosting settings only.
