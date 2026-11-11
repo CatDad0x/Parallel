@@ -109,6 +109,10 @@ abstract contract BaseTest is Test {
         audHedgedBasket = _createVault(audd, AUD, "Parallel AUD Hedged US Tech", "pmAUD-TECH-H", _basket(), true);
 
         audd.grantRole(audd.MINTER_ROLE(), admin);
+        // Seed the onchain FX venue's AUD liquidity pool (the other side of every hedge).
+        audd.mint(admin, 50_000_000e6);
+        audd.approve(address(hedgeBook), type(uint256).max);
+        hedgeBook.lpDeposit(AUD, 50_000_000e6);
         audd.mint(alice, 1_000_000e6);
         audd.mint(bob, 1_000_000e6);
     }
@@ -130,7 +134,6 @@ abstract contract BaseTest is Test {
 
     function _grantMinters(MockToken t) internal {
         t.grantRole(t.MINTER_ROLE(), address(exchange));
-        t.grantRole(t.MINTER_ROLE(), address(hedgeBook));
         t.grantRole(t.MINTER_ROLE(), address(faucet));
     }
 

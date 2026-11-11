@@ -166,21 +166,46 @@ contract LendingTest is BaseTest {
         assertApproxEqRel(router.ltvOf(hedgedMarket, alice), OPEN_HEDGED, 0.0001e18);
     }
 
-    function test_borrowBlockedWhenMarketClosed_interfaceOnly() public {
+    function test_borrowAllowedWhileMarketClosed() public {
         vm.startPrank(alice);
         audd.approve(address(router), 10_000e6);
         router.depositToVaultAndBorrow(audHedgedIndex, address(audd), 10_000e6, 0, hedgedMarket, 0);
         vm.stopPrank();
 
+        // v0.4: borrowing is allowed 24/7; the DEX deviation guard replaces the market-hours rule.
         oracle.setMarketMode(OracleHub.MarketMode.FORCE_CLOSED);
         vm.prank(alice);
-        vm.expectRevert(ParallelRouter.MarketClosed.selector);
         router.supplyCollateralAndBorrow(hedgedMarket, 0, 1_000e6);
-
-        // Documented limitation: Morpho Blue itself does not enforce market hours.
-        vm.prank(alice);
-        morpho.borrow(hedgedMarket, 1_000e6, 0, alice, alice);
         assertGt(morpho.position(hedgedMarket.id(), alice).borrowShares, 0);
+    }
+
+    function test_deviationGuardPausesBorrowAndLiquidation() public {
+        vm.startPrank(alice);
+        audd.approve(address(router), 10_000e6);
+        router.depositToVaultAndBorrow(audHedgedIndex, address(audd), 10_000e6, 0, hedgedMarket, 5_000e6);
+        vm.stopPrank();
+
+        // 3% discount (red): borrowing still allowed, collateral value unchanged
+        uint256 hf0 = router.healthFactor(hedgedMarket, alice);
+        vm.prank(admin);
+        exchange.setDrift(-500);
+        assertEq(exchange.deviationLevel(), 2);
+        assertEq(router.healthFactor(hedgedMarket, alice), hf0, "DEX drift must not move collateral value");
+
+        // 10% discount: router refuses new borrows and the oracle reverts (liquidation paused)
+        vm.prank(admin);
+        exchange.setDrift(-1_000);
+        assertEq(exchange.deviationLevel(), 3);
+        vm.prank(alice);
+        vm.expectRevert(ParallelRouter.DexDislocated.selector);
+        router.supplyCollateralAndBorrow(hedgedMarket, 0, 100e6);
+        vm.expectRevert();
+        router.healthFactor(hedgedMarket, alice);
+
+        // back to normal: everything resumes
+        vm.prank(admin);
+        exchange.setDrift(0);
+        assertEq(router.healthFactor(hedgedMarket, alice), hf0);
     }
 
     function test_repayAllAndWithdrawWhileClosed() public {

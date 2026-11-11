@@ -28,6 +28,9 @@ contract FactoryFaucetTest is BaseTest {
     function test_inrHedgedVaultWorks() public {
         ParallelVault v = _createVault(inr, INR, "Parallel INR Hedged S&P 500", "pmINR-SPY-H", _index(), true);
         inr.grantRole(inr.MINTER_ROLE(), admin);
+        inr.mint(admin, 400_000_000e6); // liquidity for the INR hedge pool
+        inr.approve(address(hedgeBook), type(uint256).max);
+        hedgeBook.lpDeposit(INR, 400_000_000e6);
         inr.mint(alice, 840_000e6); // ~US$10k
         _deposit(v, alice, 840_000e6);
         uint256 v0 = _assetValue(v, alice);

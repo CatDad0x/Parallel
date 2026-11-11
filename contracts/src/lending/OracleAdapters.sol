@@ -5,8 +5,14 @@ import {IOracle} from "morpho-blue/interfaces/IOracle.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import {IOracleHub} from "../interfaces/IOracleHub.sol";
 
+interface IDexGuard {
+    function deviationLevel() external view returns (uint8);
+}
+
 interface IParallelVaultView {
     function previewRedeem(uint256 shares) external view returns (uint256);
+    function previewRedeemAtIndex(uint256 shares) external view returns (uint256);
+    function exchange() external view returns (address);
     function asset() external view returns (address);
     function decimals() external view returns (uint8);
 }
@@ -45,10 +51,13 @@ contract EquityOracleAdapter is IOracle {
 
 /// @title VaultShareOracleAdapter
 /// @notice Morpho oracle for (collateral = Parallel Markets vault shares, loan = the vault's own asset).
-/// Values one whole share at its **realisable** value, `previewRedeem(1 share)`, i.e. NAV per
-/// share net of the exit cost a liquidator would pay. NAV uses tracked balances, so direct token
-/// donations to the vault do not move this price. It still depends on equity prices, FX, hedge
-/// MTM and fees; it is not manipulation-proof against a compromised feed or admin.
+/// Values one whole share at the **index** price net of the normal spread only,
+/// `previewRedeemAtIndex(1 share)`. The DEX price never enters this value, so a thin pool cannot
+/// move collateral or trigger liquidations. Instead the DEX is a guard: when it sits 10% or more
+/// below the index the adapter reverts, which pauses borrowing, liquidation and collateral
+/// withdrawal in Morpho (repaying stays possible). NAV uses tracked balances, so direct token
+/// donations do not move this price. It still depends on equity prices, FX, hedge MTM and fees; it
+/// is not manipulation-proof against a compromised feed or admin.
 contract VaultShareOracleAdapter is IOracle {
     IParallelVaultView public immutable vault;
     uint256 internal immutable _oneShare;
@@ -64,7 +73,10 @@ contract VaultShareOracleAdapter is IOracle {
         dAsset; // documented above
     }
 
+    error DexDislocated();
+
     function price() external view returns (uint256) {
-        return vault.previewRedeem(_oneShare) * _scale;
+        if (IDexGuard(vault.exchange()).deviationLevel() >= 3) revert DexDislocated();
+        return vault.previewRedeemAtIndex(_oneShare) * _scale;
     }
 }

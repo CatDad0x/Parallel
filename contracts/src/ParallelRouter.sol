@@ -25,9 +25,10 @@ import {IOracleHub} from "./interfaces/IOracleHub.sol";
 ///  - Queued (market-closed) deposits go directly to `vault.requestDeposit` so the user owns the
 ///    request; to pay with another group stable, call `SimExchange.swapStable` first.
 ///
-/// INTERFACE-LEVEL CONTROLS ONLY: the router blocks new borrows while the US market is closed and
-/// caps borrows at an opening LTV below each market's liquidation LTV. Morpho Blue itself does not
-/// know about either rule, so anyone calling Morpho directly bypasses them.
+/// INTERFACE-LEVEL CONTROL ONLY: the router caps borrows at an opening LTV below each market's
+/// liquidation LTV. Morpho Blue itself does not know this rule, so anyone calling Morpho directly
+/// bypasses it. Borrowing is allowed 24/7; the DEX deviation guard (see SimExchange) pauses it, in
+/// the router and in the vault-share oracle adapter, when the DEX is 10% or more below the index.
 ///
 /// Morpho actions taken on a user's behalf require `morpho.setAuthorization(router, true)`.
 /// Vault redemptions through the router require a share allowance to the router.
@@ -52,7 +53,7 @@ contract ParallelRouter is AccessControl, Multicall {
     event RedeemedTo(address indexed user, address indexed vault, uint256 shares, address token, uint256 amountOut);
     event Borrowed(address indexed user, Id indexed id, uint256 assets);
 
-    error MarketClosed();
+    error DexDislocated();
     error OpeningLtvExceeded(uint256 ltv, uint256 max);
     error BorrowingDisabled();
     error Slippage();
@@ -178,7 +179,7 @@ contract ParallelRouter is AccessControl, Multicall {
     // ------------------------------------------------------------------ internal
 
     function _borrow(MarketParams calldata mp, uint256 assets, address user) internal {
-        if (!oracle.isMarketOpen()) revert MarketClosed();
+        if (exchange.deviationLevel() >= 3) revert DexDislocated();
         uint256 cap = maxOpenLtv[mp.id()];
         if (cap == 0) revert BorrowingDisabled();
         morpho.borrow(mp, assets, 0, user, user);

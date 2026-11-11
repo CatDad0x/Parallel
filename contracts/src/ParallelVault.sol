@@ -21,9 +21,11 @@ import {HedgeBook} from "./HedgeBook.sol";
 ///
 ///   NAV (local) = equities valued in local + cash + hedge MTM
 ///
-/// - Deposits/redeems execute instantly while the US market is open.
-/// - While closed, users queue requests (`requestDeposit` / `requestRedeem`); the keeper settles
-///   them at the next open NAV via `processQueue`.
+/// - Deposits execute instantly while the US market is open; while closed, users queue them
+///   (`requestDeposit`) and the keeper settles them at the next open NAV via `processQueue`.
+/// - v0.4: redemptions execute instantly 24/7 by selling equities on the (simulated) DEX. The
+///   redeemer receives the actual DEX execution price; NAV and loan collateral use the index
+///   price. `requestRedeem` remains as a "wait" option and settles via `processQueue`.
 /// - Entry/exit cost equal to the expected execution spread is charged to the transacting user,
 ///   so existing holders are not diluted by trading costs.
 /// - Management fee accrues by minting shares to the treasury.
@@ -170,6 +172,8 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
         oracle = deps.oracle;
         exchange = deps.exchange;
         hedgeBook = deps.hedgeBook;
+        // The onchain FX venue pulls hedge losses from the vault with transferFrom.
+        if (cfg.hedged) IERC20(address(asset_)).forceApprove(address(deps.hedgeBook), type(uint256).max);
         treasury = deps.treasury;
         lastFeeAccrual = uint64(block.timestamp);
 
@@ -226,7 +230,9 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
     /// @notice Expected execution cost on entry/exit, in bps of the transacted amount (rounded up).
     /// Exact cost = spreadBps * investedFraction; see `_cost`.
     function tradingCostBps() public view returns (uint256) {
-        return Math.ceilDiv(exchange.spreadBps() * (BPS - cashBufferBps), BPS);
+        uint256 f = exchange.buyFactorWad();
+        uint256 premium = f > 1e18 ? f - 1e18 : 0;
+        return Math.ceilDiv(premium * (BPS - cashBufferBps), 1e18);
     }
 
     function queueLengths() external view returns (uint256 deposits, uint256 redeems) {
@@ -247,9 +253,30 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
         return _convertToShares(assets - _entryCost(assets), Math.Rounding.Floor);
     }
 
+    /// @notice What a redemption pays: index NAV minus the actual DEX execution cost (spread and drift).
     function previewRedeem(uint256 shares) public view override returns (uint256) {
         uint256 assets = _convertToAssets(shares, Math.Rounding.Floor);
-        return assets - _exitCost(assets);
+        return assets - _exitCost(assets, exchange.sellFactorWad());
+    }
+
+    /// @notice Value of `shares` at the index price net of the normal spread only (no DEX drift).
+    /// Used as loan-collateral value so a thin pool cannot move collateral or liquidations.
+    function previewRedeemAtIndex(uint256 shares) public view returns (uint256) {
+        uint256 assets = _convertToAssets(shares, Math.Rounding.Floor);
+        return assets - _exitCost(assets, (BPS - exchange.spreadBps()) * 1e14);
+    }
+
+    /// @notice Redemption quote for the UI: payout at the DEX, payout at the index (spread only),
+    /// and the gap between them in bps (0 when the DEX is not worse).
+    function redeemQuote(uint256 shares)
+        external
+        view
+        returns (uint256 atDex, uint256 atIndex, uint256 gapBps, uint8 level)
+    {
+        atDex = previewRedeem(shares);
+        atIndex = previewRedeemAtIndex(shares);
+        gapBps = atIndex > atDex && atIndex > 0 ? (atIndex - atDex) * BPS / atIndex : 0;
+        level = exchange.deviationLevel();
     }
 
     function maxDeposit(address) public view override returns (uint256) {
@@ -257,7 +284,7 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
     }
 
     function maxRedeem(address owner) public view override returns (uint256) {
-        return oracle.isMarketOpen() ? balanceOf(owner) : 0;
+        return balanceOf(owner);
     }
 
     function maxMint(address) public pure override returns (uint256) {
@@ -300,7 +327,6 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
         nonReentrant
         returns (uint256 assets)
     {
-        if (!oracle.isMarketOpen()) revert MarketClosed();
         if (shares == 0) revert ZeroAmount();
         if (shares > balanceOf(owner)) revert ERC4626ExceededMaxRedeem(owner, shares, balanceOf(owner));
         _accrueFee();
@@ -343,13 +369,13 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
         emit DepositRequested(id, _msgSender(), receiver, assets);
     }
 
-    /// @notice Queue a redemption while the US market is closed. Shares are escrowed in the vault.
+    /// @notice Queue a redemption ("wait until the market opens"). Shares are escrowed in the vault
+    /// and settle in `processQueue` once the market is open, if at least `minAssets` is payable.
     function requestRedeem(uint256 shares, address receiver, uint256 minAssets)
         external
         nonReentrant
         returns (uint256 id)
     {
-        if (oracle.isMarketOpen()) revert MarketOpenUseInstant();
         if (shares == 0) revert ZeroAmount();
         _transfer(_msgSender(), address(this), shares);
         pendingRedeemShares += shares;
@@ -502,6 +528,9 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
     function _prepareRedeem(uint256 shares, uint256 assetsOut) internal {
         uint256 supply = totalSupply();
         address a = asset();
+        // Realise accrued hedge P&L BEFORE the pro-rata sale, so a hedge loss is funded by all
+        // holders' equity (as NAV already assumes) and not left to whoever remains after the exit.
+        if (hedged) _syncHedge();
         for (uint256 i; i < _equities.length; ++i) {
             uint256 bal = held[_equities[i]];
             uint256 qty = bal.mulDiv(shares, supply);
@@ -518,7 +547,7 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
         uint256 eq = equityValue();
         if (eq == 0) return;
         // gross up for spread, plus 1 bp safety margin
-        uint256 shortfall = (need - c) * (BPS + exchange.spreadBps() + 1) / BPS;
+        uint256 shortfall = (need - c) * 1e18 / exchange.sellFactorWad() * (BPS + 1) / BPS;
         uint256 fracWad = shortfall >= eq ? 1e18 : shortfall.mulDiv(1e18, eq, Math.Rounding.Ceil);
         address a = asset();
         for (uint256 i; i < _equities.length; ++i) {
@@ -645,21 +674,27 @@ contract ParallelVault is Initializable, ERC4626Upgradeable, AccessControlUpgrad
         return shares.mulDiv(totalAssets() + 1, _effectiveSupply() + 10 ** _decimalsOffset(), rounding);
     }
 
-    /// @dev Entry charge = assets * spread * investedFraction, rounded up (+1 wei for exchange
-    /// rounding), because exactly that share of a deposit is bought at the ask.
+    /// @dev Entry charge = assets * (ask premium over index) * investedFraction, rounded up (+1 wei
+    /// for exchange rounding), because exactly that share of a deposit is bought at the ask. With
+    /// no drift the premium is the spread; a cheaper DEX is not passed on to the depositor.
     function _entryCost(uint256 assets) internal view returns (uint256 c) {
-        c = assets.mulDiv(exchange.spreadBps() * (BPS - cashBufferBps), BPS * BPS, Math.Rounding.Ceil);
+        uint256 f = exchange.buyFactorWad();
+        uint256 premium = f > 1e18 ? f - 1e18 : 0;
+        c = assets.mulDiv(premium * (BPS - cashBufferBps), BPS * 1e18, Math.Rounding.Ceil);
         if (assets > c) c += 1;
     }
 
     /// @dev Exit charge = assets * spread * (equityValue / NAV). A redeemer's pro-rata slice of the
     /// equities is sold at the bid; when hedge losses make gross equity exceed NAV, the charge
     /// scales up accordingly so remaining holders never fund an exit.
-    function _exitCost(uint256 assets) internal view returns (uint256 c) {
+    /// `sellFactor` is the executed bid as a WAD fraction of the index price; a bid above the
+    /// index is not paid out to the redeemer (the surplus stays with remaining holders).
+    function _exitCost(uint256 assets, uint256 sellFactor) internal view returns (uint256 c) {
         uint256 nav = totalAssets();
         if (nav == 0) return 0;
         uint256 eq = equityValue();
-        c = assets.mulDiv(eq * exchange.spreadBps(), nav * BPS, Math.Rounding.Ceil);
+        uint256 loss = sellFactor >= 1e18 ? 0 : 1e18 - sellFactor;
+        c = assets.mulDiv(eq * loss, nav * 1e18, Math.Rounding.Ceil);
         c = Math.min(c + 1, assets);
     }
 

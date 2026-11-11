@@ -10,12 +10,15 @@ import {MockToken} from "../src/tokens/MockToken.sol";
 import {OracleHub} from "../src/OracleHub.sol";
 import {SimExchange} from "../src/SimExchange.sol";
 import {HedgeBook} from "../src/HedgeBook.sol";
+import {GTradeVenue} from "../src/hedge/GTradeVenue.sol";
+import {HedgeManager} from "../src/hedge/HedgeManager.sol";
+import {MockGTrade} from "../src/testnet/MockGTrade.sol";
 import {ParallelVault} from "../src/ParallelVault.sol";
 import {VaultFactory} from "../src/VaultFactory.sol";
 import {Faucet} from "../src/Faucet.sol";
 import {ParallelRouter} from "../src/ParallelRouter.sol";
 import {KinkedIrm} from "../src/lending/KinkedIrm.sol";
-import {EquityOracleAdapter, VaultShareOracleAdapter, IParallelVaultView} from "../src/lending/OracleAdapters.sol";
+import {VaultShareOracleAdapter, IParallelVaultView} from "../src/lending/OracleAdapters.sol";
 import {DemoPyth} from "../src/testnet/DemoPyth.sol";
 import {IPyth} from "../src/interfaces/IPyth.sol";
 import {IOracleHub} from "../src/interfaces/IOracleHub.sol";
@@ -23,7 +26,7 @@ import {IMintableToken} from "../src/interfaces/IMintableToken.sol";
 
 /// @title Deploy
 /// @notice Deploys and seeds the full Parallel Markets demo:
-///   tokens, oracle, exchange, hedge book, 12 vaults, Morpho Blue + IRM + 5 markets, router, faucet.
+///   tokens, oracle, exchange, hedge book, 6 hedged vaults, Morpho Blue + IRM + 6 markets, router, faucet.
 ///
 /// Env:
 ///   PRIVATE_KEY      deployer (becomes admin)
@@ -40,6 +43,13 @@ contract Deploy is Script {
     bytes32 constant EUR = "EUR";
     bytes32 constant INR = "INR";
 
+    // Back-tested LTVs (SPEC section 14.4) and borrower-interest fee (10%).
+    uint256 constant LLTV_SPY = 0.60e18;
+    uint256 constant LLTV_TECH = 0.50e18;
+    uint256 constant OPEN_LTV_SPY = 0.45e18;
+    uint256 constant OPEN_LTV_TECH = 0.35e18;
+    uint256 constant INTEREST_FEE = 0.10e18;
+
     struct Core {
         address admin;
         address keeper;
@@ -53,6 +63,10 @@ contract Deploy is Script {
         IMorpho morpho;
         KinkedIrm irm;
         ParallelRouter router;
+        MockToken hedgeUsdc;
+        MockGTrade gtrade;
+        GTradeVenue venue;
+        HedgeManager hedgeManager;
     }
 
     struct VaultInfo {
@@ -94,6 +108,7 @@ contract Deploy is Script {
         _deployLending();
         _configureFaucet();
         _seed();
+        _deployHedgeMirror();
         vm.stopBroadcast();
 
         _writeDeployment();
@@ -172,7 +187,6 @@ contract Deploy is Script {
     function _grantMinters(MockToken t) internal {
         bytes32 role = t.MINTER_ROLE();
         t.grantRole(role, address(c.exchange));
-        t.grantRole(role, address(c.hedgeBook));
         t.grantRole(role, address(c.faucet));
         t.grantRole(role, c.admin);
     }
@@ -225,14 +239,14 @@ contract Deploy is Script {
     // ------------------------------------------------------------------ vaults
 
     function _deployVaults() internal {
+        // v0.4: six hedged vaults, one per currency and strategy. Order: pSPY-AUD, pUSTech-AUD,
+        // pSPY-EUR, pUSTech-EUR, pSPY-INR, pUSTech-INR. Unhedged exists only in the simulator.
         MockToken[3] memory assets = [stables[0], stables[3], stables[4]]; // mAUDD, mEURC, mINR
         bytes32[3] memory ccys = [AUD, EUR, INR];
         string[3] memory codes = ["AUD", "EUR", "INR"];
         for (uint256 i; i < 3; ++i) {
             _vault(assets[i], ccys[i], codes[i], true, true);
-            _vault(assets[i], ccys[i], codes[i], true, false);
             _vault(assets[i], ccys[i], codes[i], false, true);
-            _vault(assets[i], ccys[i], codes[i], false, false);
         }
     }
 
@@ -259,8 +273,8 @@ contract Deploy is Script {
         cfg.mgmtFeeBps = 50;
 
         string memory strat = index ? "S&P 500" : "US Tech";
-        string memory name = string.concat("Parallel ", code, hedged ? " Hedged " : " ", strat);
-        string memory symbol = string.concat("pm", code, index ? "-SPY" : "-TECH", hedged ? "-H" : "");
+        string memory name = string.concat("Parallel ", strat, " (", code, ")", hedged ? "" : " unhedged");
+        string memory symbol = string.concat(index ? "pSPY-" : "pUSTech-", code, hedged ? "" : "-U");
         address v = c.factory.createVault(IERC20(address(asset)), name, symbol, cfg, c.admin);
         vaultInfos.push(VaultInfo(v, name, symbol, ccy, index ? "index" : "basket", hedged));
     }
@@ -272,8 +286,8 @@ contract Deploy is Script {
         if (morphoAddr == address(0)) {
             morphoAddr = deployCode("out/Morpho.sol/Morpho.json", abi.encode(c.admin));
             c.morpho = IMorpho(morphoAddr);
-            c.morpho.enableLltv(0.625e18);
-            c.morpho.enableLltv(0.77e18);
+            c.morpho.enableLltv(LLTV_SPY);
+            c.morpho.enableLltv(LLTV_TECH);
         } else {
             c.morpho = IMorpho(morphoAddr);
         }
@@ -281,18 +295,30 @@ contract Deploy is Script {
         if (!c.morpho.isIrmEnabled(address(c.irm))) c.morpho.enableIrm(address(c.irm));
         c.router = new ParallelRouter(c.morpho, c.exchange, IOracleHub(address(c.oracle)), c.admin);
 
-        // Illustrative parameters, pending risk calibration. LLTV is immutable per market.
-        _equityMarket(stables[0], AUD, "mAUDD / mSPY");
-        _vaultMarket(vaultInfos[0].vault, stables[0], 0.77e18, 0.55e18, "mAUDD / AUD Hedged S&P 500 shares");
-        _vaultMarket(vaultInfos[1].vault, stables[0], 0.625e18, 0.45e18, "mAUDD / AUD S&P 500 shares");
-        _equityMarket(stables[3], EUR, "mEURC / mSPY");
-        _equityMarket(stables[4], INR, "mINR / mSPY");
+        // Back-tested in SPEC section 14.4. LLTV is immutable per market; the opening LTV is an
+        // app-level cap in the router. One same-currency market per vault, in vault order.
+        for (uint256 i; i < vaultInfos.length; ++i) {
+            bool index = keccak256(bytes(vaultInfos[i].strategy)) == keccak256("index");
+            MockToken loan = MockToken(ParallelVault(vaultInfos[i].vault).asset());
+            _vaultMarket(
+                vaultInfos[i].vault,
+                loan,
+                index ? LLTV_SPY : LLTV_TECH,
+                index ? OPEN_LTV_SPY : OPEN_LTV_TECH,
+                string.concat(vaultInfos[i].symbol, " / ", loan.symbol())
+            );
+        }
+        _setInterestFee();
     }
 
-    function _equityMarket(MockToken loan, bytes32 ccy, string memory label) internal {
-        address oracle =
-            address(new EquityOracleAdapter(IOracleHub(address(c.oracle)), address(equities[0]), ccy, address(loan)));
-        _market(MarketParams(address(loan), address(equities[0]), oracle, address(c.irm), 0.625e18), 0.45e18, label);
+    /// @dev Takes 10% of borrower interest for the treasury through Morpho's per-market fee. Only
+    /// possible when this script deployed Morpho (the admin is its owner).
+    function _setInterestFee() internal {
+        if (vm.envOr("MORPHO_ADDRESS", address(0)) != address(0)) return;
+        c.morpho.setFeeRecipient(c.admin);
+        for (uint256 i; i < marketInfos.length; ++i) {
+            c.morpho.setFee(marketInfos[i].mp, INTEREST_FEE);
+        }
     }
 
     function _vaultMarket(address vault, MockToken loan, uint256 lltv, uint256 openLtv, string memory label)
@@ -321,7 +347,50 @@ contract Deploy is Script {
         c.faucet.setDrips(d);
     }
 
+    /// Mirror hedge: a mock gTrade (Base Sepolia has none), the venue adapter that trades it with USDC
+    /// margin, and the manager the keeper calls. On mainnet the venue would point at the real gTrade.
+    function _deployHedgeMirror() internal {
+        MockToken usdc = new MockToken("Mock USDC (testnet)", "mUSDC", 6, "STABLE", c.admin);
+        usdc.grantRole(usdc.MINTER_ROLE(), c.admin);
+        IOracleHub o = IOracleHub(address(c.oracle));
+        MockGTrade gt = new MockGTrade(IERC20(address(usdc)), o, EUR, AUD);
+        GTradeVenue venue = new GTradeVenue(gt, IERC20(address(usdc)), o, c.admin);
+        HedgeManager mgr = new HedgeManager(c.hedgeBook, venue, c.admin);
+        venue.grantRole(venue.OPERATOR_ROLE(), address(mgr));
+        venue.grantRole(venue.OPERATOR_ROLE(), c.keeper);
+        mgr.grantRole(mgr.KEEPER_ROLE(), c.keeper);
+
+        // EUR: long EUR/USD (pair 21). AUD: long EUR/USD + short EUR/AUD (pair 110). INR: none.
+        GTradeVenue.Leg[] memory eurLegs = new GTradeVenue.Leg[](1);
+        eurLegs[0] = GTradeVenue.Leg(21, EUR, bytes32(0), true, 0, false, false);
+        venue.setLegs(EUR, eurLegs);
+        GTradeVenue.Leg[] memory audLegs = new GTradeVenue.Leg[](2);
+        audLegs[0] = GTradeVenue.Leg(21, EUR, bytes32(0), true, 0, false, false);
+        audLegs[1] = GTradeVenue.Leg(110, EUR, AUD, false, 0, false, false);
+        venue.setLegs(AUD, audLegs);
+
+        usdc.mint(c.admin, 2_000_000e6);
+        usdc.approve(address(venue), type(uint256).max);
+        venue.fund(2_000_000e6);
+
+        c.hedgeUsdc = usdc;
+        c.gtrade = gt;
+        c.venue = venue;
+        c.hedgeManager = mgr;
+    }
+
+    function _fxPool(MockToken token, bytes32 ccy, uint256 amt) internal {
+        token.mint(c.admin, amt);
+        token.approve(address(c.hedgeBook), amt);
+        c.hedgeBook.lpDeposit(ccy, amt);
+    }
+
     function _seed() internal {
+        // Liquidity for the onchain FX venue: the real counterparty to every vault hedge.
+        // Must exist before the vault seed deposits, which open the first hedges.
+        _fxPool(stables[0], AUD, 5_000_000e6);
+        _fxPool(stables[3], EUR, 5_000_000e6);
+        _fxPool(stables[4], INR, 400_000_000e6);
         // Seed deposit in every vault (A$/€ 1,000 or ₹ 80,000) so share prices are established.
         for (uint256 i; i < vaultInfos.length; ++i) {
             ParallelVault v = ParallelVault(vaultInfos[i].vault);
@@ -363,7 +432,11 @@ contract Deploy is Script {
             _kvAddr("factory", address(c.factory)),
             _kvAddr("morpho", address(c.morpho)),
             _kvAddr("irm", address(c.irm)),
-            _kvAddr("router", address(c.router))
+            _kvAddr("router", address(c.router)),
+            _kvAddr("hedgeUsdc", address(c.hedgeUsdc)),
+            _kvAddr("gtrade", address(c.gtrade)),
+            _kvAddr("hedgeVenue", address(c.venue)),
+            _kvAddr("hedgeManager", address(c.hedgeManager))
         );
         j = string.concat(j, '  "tokens": [\n', _tokensJson(), "  ],\n");
         j = string.concat(j, '  "feeds": [\n', _feedsJson(), "  ],\n");
