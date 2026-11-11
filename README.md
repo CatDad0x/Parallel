@@ -50,7 +50,7 @@ git add packages/shared && git commit -m "Base Sepolia deployment" && git push
 ```
 This deploys the tokens, oracle, 12 vaults, Morpho Blue, 5 lending markets, router and faucet. It also seeds vault and lender liquidity, verifies the contracts on Basescan and writes `packages/shared/deployments/84532.json`. Commit that file, because the website and keeper read their addresses from it.
 
-Note the block number in the output and use it as the keeper's `DEPLOY_BLOCK`.
+Note the block number in the output and use it as the keeper's `DEPLOY_BLOCK` and the website's `NEXT_PUBLIC_DEPLOY_BLOCK`. Leave `MORPHO_ADDRESS` unset: the canonical Morpho does not allow our LLTVs (see SPEC section 5), so the script deploys its own copy.
 
 ### 3. Run the keeper
 Host it on Railway, Render or any small server, running 24/7.
@@ -63,6 +63,7 @@ Host it on Railway, Render or any small server, running 24/7.
 - Env vars (see `web/.env.example`):
   - `NEXT_PUBLIC_CHAIN_ID=84532`
   - `NEXT_PUBLIC_RPC_URL`: a reliable Base Sepolia RPC (Alchemy, QuickNode)
+  - `NEXT_PUBLIC_DEPLOY_BLOCK`: the deploy block from step 2, so history and activity lookups stay fast
   - `NEXT_PUBLIC_KEEPER_URL`: the keeper's public health URL
   - `RELAYER_PRIVATE_KEY`: a funded testnet wallet that pays gas and faucet claims for new users, so visitors never need test ETH
   - `NEXT_PUBLIC_PRIVY_APP_ID` (optional): enables email sign-in with an embedded wallet. Create a free app at privy.io and add your Vercel domain to its allowed origins.
