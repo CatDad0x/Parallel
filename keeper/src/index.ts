@@ -7,6 +7,7 @@
  *  - queues:      settle queued deposits/redeems when the market is open.
  *  - rebalance:   restore weights / cash buffer / hedge ratio.
  *  - roll:        settle-and-reopen hedges (monthly, or on demand).
+ *  - mirrorHedge: keep the real (mock) gTrade position in line with the protocol hedge.
  *  - liquidations: scan Morpho borrowers, liquidate unhealthy positions, exit seized collateral.
  *  - poke:        NAV snapshot events for charts.
  *  - /health:     JSON status on HEALTH_PORT.
@@ -22,6 +23,7 @@ import {
   parseAbiItem,
   type Address,
   type Hex,
+  stringToHex,
   defineChain,
 } from "viem";
 import { privateKeyToAccount, nonceManager } from "viem/accounts";
@@ -36,6 +38,9 @@ import {
   demoPythAbi,
   exchangeAbi,
   tokenAbi,
+  hedgeManagerAbi,
+  hedgeVenueAbi,
+  mockGTradeAbi,
   type MarketInfo,
 } from "@parallel/shared";
 
@@ -209,6 +214,56 @@ async function rollIfDue(force = false) {
   return "rolled";
 }
 
+// ------------------------------------------------------------------ mirror hedge
+
+const MIRROR_CCYS = ["AUD", "EUR"].map((c) => stringToHex(c, { size: 32 })); // INR has no gTrade pair
+
+const rd = (address: Address, abi: any, functionName: string, args: unknown[] = []) =>
+  pub.readContract({ address, abi, functionName, args } as any) as Promise<any>;
+
+/**
+ * Testnet only: plays the gTrade oracle. Executes pending MockGTrade orders, then confirms each
+ * leg in the venue. Against the real gTrade this step becomes "watch MarketExecuted events".
+ */
+async function settleMockOrders(ccy: Hex) {
+  const gt = d.gtrade!;
+  const venue = d.hedgeVenue!;
+  const next = Number(await rd(gt, mockGTradeAbi, "nextOrderId"));
+  const legCount = Number(await rd(venue, hedgeVenueAbi, "legCount", [ccy]));
+  for (let id = Math.max(1, next - 20); id < next; id++) {
+    const [kind, , index, , exists] = (await rd(gt, mockGTradeAbi, "orders", [id])) as [number, Address, number, bigint, boolean];
+    if (!exists) continue;
+    const { request, result } = await pub.simulateContract({
+      address: gt, abi: mockGTradeAbi, functionName: "fulfil", args: [id], account,
+    } as any);
+    await pub.waitForTransactionReceipt({ hash: await wallet.writeContract(request as any) });
+    const tradeIndex = Number(result);
+    // OPEN (kind 0) fills the next unopened pending leg; other kinds match the leg by trade index.
+    for (let i = 0; i < legCount; i++) {
+      const leg = (await rd(venue, hedgeVenueAbi, "leg", [ccy, i])) as { open: boolean; pending: boolean; index: number };
+      if (!leg.pending) continue;
+      if (kind === 0 ? !leg.open : leg.open && Number(leg.index) === Number(index)) {
+        await send(venue, hedgeVenueAbi, "confirm", [ccy, BigInt(i), tradeIndex]);
+        break;
+      }
+    }
+  }
+}
+
+async function mirrorHedge() {
+  if (!d.hedgeManager || !d.hedgeVenue || !d.gtrade) return "no mirror hedge deployed";
+  const acted: string[] = [];
+  for (const ccy of MIRROR_CCYS) {
+    if (await rd(d.hedgeVenue, hedgeVenueAbi, "pending", [ccy])) await settleMockOrders(ccy);
+    if (await rd(d.hedgeManager, hedgeManagerAbi, "needsSync", [ccy])) {
+      await send(d.hedgeManager, hedgeManagerAbi, "sync", [ccy]);
+      await settleMockOrders(ccy);
+      acted.push(ccy);
+    }
+  }
+  return acted.length ? `synced ${acted.length}` : "in sync";
+}
+
 async function pokeAll() {
   for (const v of d.vaults) await send(v.address, vaultAbi, "poke");
 }
@@ -236,16 +291,14 @@ async function refreshBorrowers() {
   }
 }
 
-async function exitCollateral(m: MarketInfo, amount: bigint, open: boolean) {
+async function exitCollateral(m: MarketInfo, amount: bigint, _open: boolean) {
   const vault = d.vaults.find((v) => v.address.toLowerCase() === m.collateralToken.toLowerCase());
   if (vault) {
-    // Vault-share collateral: redeem when open, otherwise queue for the next open.
-    if (open) await send(vault.address, vaultAbi, "redeem", [amount, account.address, account.address]);
-    else await send(vault.address, vaultAbi, "requestRedeem", [amount, account.address, 0n]);
-    return open ? "redeemed" : "queued redeem";
+    // v0.4: vault shares redeem instantly 24/7 at the DEX price (no queue).
+    await send(vault.address, vaultAbi, "redeem", [amount, account.address, account.address]);
+    return "redeemed";
   }
-  // Equity collateral: sell via SimExchange when open, otherwise hold until open.
-  if (!open) return "holding equity until open";
+  // Equity collateral: sells also run 24/7.
   await send(d.exchange, exchangeAbi, "sellEquity", [m.collateralToken, m.loanToken, amount, 0n, account.address]);
   return "sold";
 }
@@ -324,6 +377,7 @@ async function main() {
     await tick("prices", prices);
     await tick("queues", settleQueues);
     await tick("rebalance", rebalanceAll);
+    await tick("mirrorHedge", mirrorHedge);
     await tick("liquidate", liquidate);
     await tick("poke", pokeAll);
     console.log(JSON.stringify(status, null, 2));
@@ -363,6 +417,7 @@ async function main() {
   slow("queues", QUEUE_SECS, settleQueues);
   slow("rebalance", REBALANCE_SECS, rebalanceAll);
   slow("roll", 3600, () => rollIfDue());
+  slow("mirrorHedge", REBALANCE_SECS, mirrorHedge);
   slow("poke", POKE_SECS, pokeAll);
 }
 

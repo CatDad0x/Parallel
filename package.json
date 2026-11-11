@@ -7,7 +7,7 @@
     "web": "pnpm --filter @parallel/web dev",
     "test": "cd contracts && forge test",
     "build:contracts": "cd contracts && forge build && cd .. && node packages/shared/scripts/export-abis.mjs",
-    "deploy:local": "cd contracts && forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --slow",
+    "deploy:local": "cd contracts && forge script script/Deploy.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --slow --gas-estimate-multiplier 300",
     "deploy:base-sepolia": "cd contracts && forge script script/Deploy.s.sol --rpc-url base_sepolia --broadcast --slow --verify && cd .. && node packages/shared/scripts/register-deployment.mjs 84532"
   },
   "packageManager": "pnpm@9.15.0"

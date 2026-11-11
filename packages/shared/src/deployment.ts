@@ -47,6 +47,11 @@ export interface Deployment {
   oracleHub: Address;
   exchange: Address;
   hedgeBook: Address;
+  /** Mirror hedge (optional: absent in older deployments). */
+  hedgeUsdc?: Address;
+  gtrade?: Address;
+  hedgeVenue?: Address;
+  hedgeManager?: Address;
   faucet: Address;
   factory: Address;
   morpho: Address;
