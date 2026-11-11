@@ -7,6 +7,8 @@ import { vaultAbi } from "@parallel/shared";
 import { useBasis } from "@/lib/basis";
 import { useFx, useSteps, type VaultStats } from "@/lib/hooks";
 import { PricesLoading, PRODUCT_META, useLoans, useProducts, useWallet, userSharesValue, safety, lltvOf, Slash, Notice, fmtMoney, fmtSigned } from "@/lib/pm";
+import { useNavHistories, pctSeries } from "@/lib/history";
+import { PanelChart, Spark, within } from "@/components/Charts";
 import { PendingRequests } from "@/components/PendingRequests";
 
 export default function Portfolio() {
@@ -17,6 +19,7 @@ export default function Portfolio() {
   const basis = useBasis(address);
   const fx = useFx();
   const [selling, setSelling] = useState<VaultStats | undefined>();
+  const [range, setRange] = useState(0);
 
   const rows = stats
     .map((s) => {
@@ -35,6 +38,10 @@ export default function Portfolio() {
     })
     .filter((r) => r.shares > 0);
 
+  const hist = useNavHistories(stats.map((s) => s.info.address));
+  const top = [...rows].sort((a, b) => b.value - a.value)[0];
+  const topPts = top ? hist[top.s.info.address.toLowerCase()] ?? [] : [];
+  const topLine = within(pctSeries(topPts), range);
   const total = rows.reduce((a, r) => a + r.value, 0);
   const gain = rows.reduce((a, r) => a + (Number.isFinite(r.pnl) ? r.pnl : 0), 0);
   const put = rows.reduce((a, r) => a + (Number.isFinite(r.put) ? r.put : 0), 0);
@@ -73,6 +80,27 @@ export default function Portfolio() {
         </div>
       </section>
 
+      {top && (
+        <section className="pm-pad pm-sec" style={{ paddingBottom: 8 }}>
+          <div className="pm-card">
+            <div className="pm-row pm-spread" style={{ padding: "14px 18px", borderBottom: "1px solid var(--pm-line2)" }}>
+              <h2 style={{ fontSize: 14 }}><Slash />{PRODUCT_META[top.s.info.strategy].name} share price</h2>
+              <div className="pm-row" style={{ gap: 6 }}>
+                {([["1H", 3_600_000], ["6H", 21_600_000], ["All", 0]] as const).map(([l, ms]) => (
+                  <button key={l} className="pm-chip" aria-pressed={range === ms} onClick={() => setRange(ms)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {topLine.length >= 2 ? (
+              <PanelChart series={[topLine]} label={`${PRODUCT_META[top.s.info.strategy].name} share price change over time`} axis={(v) => `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}%`} />
+            ) : (
+              <p className="pm-muted" style={{ padding: 24 }}>Loading price history…</p>
+            )}
+            <p className="pm-small pm-muted" style={{ padding: "0 18px 14px" }}>Change in the share price since the start of the chart, in {symbol}. Currency protection is included.</p>
+          </div>
+        </section>
+      )}
+
       <section className="pm-pad pm-sec" style={{ paddingBottom: 8 }}>
         <h2><Slash />What you own</h2>
         <div className="pm-card pm-table-wrap">
@@ -83,7 +111,7 @@ export default function Portfolio() {
             </div>
           ) : (
             <table className="pm-table">
-              <thead><tr><th>Investment</th><th>Protection</th><th className="r">Value</th><th className="r">Gain</th><th /></tr></thead>
+              <thead><tr><th>Investment</th><th>Protection</th><th className="r">Price</th><th className="r">Share</th><th className="r">Value</th><th className="r">Gain</th><th /></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.s.info.address}>
@@ -96,6 +124,8 @@ export default function Portfolio() {
                       Currency protected
                       {r.locked && <div className="pm-small" style={{ marginTop: 4, padding: "1px 7px", borderRadius: 4, background: "var(--pm-warn-bg)", color: "var(--pm-warn-text)", display: "inline-block", marginLeft: 6 }}>Securing your loan</div>}
                     </td>
+                    <td className="r num">{fmtMoney(r.s.navPerShare, symbol, 2)}<div><Spark pts={pctSeries(hist[r.s.info.address.toLowerCase()] ?? [])} width={70} height={22} /></div></td>
+                    <td className="r num">{total > 0 ? `${((r.value / total) * 100).toFixed(0)}%` : "—"}</td>
                     <td className="r num"><strong>{fmtMoney(r.value, symbol)}</strong></td>
                     <td className={`r num ${r.pnl >= 0 ? "pm-pos" : "pm-neg"}`}>{Number.isFinite(r.pnl) && r.put ? `${r.pnl >= 0 ? "+" : "−"}${Math.abs((r.pnl / r.put) * 100).toFixed(1)}%` : "—"}</td>
                     <td className="r">
@@ -141,7 +171,7 @@ export default function Portfolio() {
                 <div key={l.market.id} style={{ display: "grid", gap: 10 }}>
                   <div className="pm-row pm-spread">
                     <div style={{ display: "grid" }}><span className="pm-small pm-muted">Borrowed</span><strong className="num" style={{ fontSize: 20 }}>{fmtMoney(l.borrowed, symbol, 2)}</strong></div>
-                    <div style={{ display: "grid" }}><span className="pm-small pm-muted">Safety</span><strong className={sf.level === 0 ? "pm-pos" : "pm-neg"}>{sf.label}</strong></div>
+                    <div style={{ display: "grid" }}><span className="pm-small pm-muted">Safety</span><strong className={sf.level === 0 ? "pm-pos" : "pm-neg"}>{sf.label}</strong><span className="pm-small pm-muted">prices can fall about {Math.max(0, Math.round((1 - l.ltv / lltvOf(l.market)) * 100))}%</span></div>
                     <Link href="/borrow" className="pm-btn sec sm">Manage loan</Link>
                   </div>
                   <span className="pm-small pm-muted">Secured by {l.strategy ? PRODUCT_META[l.strategy].name : "your shares"}</span>
