@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
 import { decodeEventLog, parseAbiItem, type Address, type Hex } from "viem";
-import { deployment } from "./config";
+import { deployment, DEPLOY_BLOCK } from "./config";
 
 const ev = {
   deposit: parseAbiItem("event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares)"),
@@ -27,7 +27,7 @@ export function useBasis(user?: Address) {
     if (!client || !user) return;
     (async () => {
       const latest = await client.getBlockNumber();
-      const start = latest > 60_000n ? latest - 60_000n : 0n;
+      const start = (latest > 60_000n ? latest - 60_000n : 0n) > DEPLOY_BLOCK ? (latest > 60_000n ? latest - 60_000n : 0n) : DEPLOY_BLOCK;
       const out: Record<string, Basis & { firstTx?: Hex; firstBlock?: bigint }> = {};
       const add = (v: string, amt: number, tx?: Hex, block?: bigint) => {
         const b = (out[v.toLowerCase()] ??= { net: 0 });

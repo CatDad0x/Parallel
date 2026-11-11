@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { deployment } from "@/lib/config";
 import { useMarkets } from "@/lib/lending";
+import { useAccount } from "wagmi";
+import { useState } from "react";
 import { useLiquidation } from "@/lib/liquidations";
+import { useNavHistories, holdingsSeries, useActivity, pctSeries, type NavPoint } from "@/lib/history";
+import { PanelChart, Spark, within } from "@/components/Charts";
 import { useLoans, useProducts, useWallet, userSharesValue, PRODUCT_META, Slash, Notice, fmtMoney, useDeviation } from "@/lib/pm";
 
 export default function Home() {
@@ -13,6 +17,10 @@ export default function Home() {
   const { states } = useMarkets(loans.map((l) => l.market));
   const dev = useDeviation();
   const { liquidation, dismiss } = useLiquidation();
+  const { address } = useAccount();
+  const hist = useNavHistories(stats.map((s) => s.info.address));
+  const activity = useActivity(address);
+  const [range, setRange] = useState(0); // ms, 0 = all
   const liqStrategy = deployment.vaults.find((v) => v.address === deployment.markets.find((m) => m.id === liquidation?.marketId)?.collateralToken)?.strategy;
   const liqName = liqStrategy ? PRODUCT_META[liqStrategy].name : "investment";
 
@@ -25,6 +33,20 @@ export default function Home() {
   const borrowed = loans.reduce((a, l) => a + l.borrowed, 0);
   const earning = states.reduce((a, s) => a + s.user.supplyAssets, 0);
   const total = invested + balance + earning - borrowed;
+
+  const series = within(
+    holdingsSeries(
+      stats.map((s) => ({ address: s.info.address, shares: Number(s.userShares + (loans.find((l) => l.market.collateralToken === s.info.address)?.collateralShares ?? 0n)) / 1e18 })),
+      hist,
+    ),
+    range,
+  );
+  const ago = (t?: number) => {
+    if (!t) return "";
+    const m = Math.max(0, Math.round((Date.now() - t) / 60000));
+    return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+  };
+  const verb: Record<string, string> = { Invest: "Invested", Sell: "Sold", Borrow: "Borrowed", Repay: "Repaid", Lend: "Lent", Withdraw: "Withdrew" };
 
   const parts: [string, string][] = [
     ["Invested", fmtMoney(invested, symbol)],
@@ -83,6 +105,44 @@ export default function Home() {
       </div>
 
       <section className="pm-pad pm-sec" style={{ paddingTop: 28 }}>
+        <div className="pm-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", alignItems: "start" }}>
+          <div className="pm-card">
+            <div className="pm-row pm-spread" style={{ padding: "14px 18px", borderBottom: "1px solid var(--pm-line2)" }}>
+              <h2 style={{ fontSize: 14 }}><Slash />Your investments over time</h2>
+              <div className="pm-row" style={{ gap: 6 }}>
+                {([["1H", 3_600_000], ["6H", 21_600_000], ["All", 0]] as const).map(([l, ms]) => (
+                  <button key={l} className="pm-chip" aria-pressed={range === ms} onClick={() => setRange(ms)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {series.length >= 2 ? (
+              <PanelChart series={[series]} label="Value of your current investments over time" axis={(v) => fmtMoney(v, symbol)} />
+            ) : (
+              <p className="pm-muted" style={{ padding: 24 }}>{invested > 0 ? "Loading your price history…" : "Invest to see how your money grows."}</p>
+            )}
+            <p className="pm-small pm-muted" style={{ padding: "0 18px 14px" }}>Today&rsquo;s holdings at past share prices. An estimate: it ignores when you bought.</p>
+          </div>
+          <div className="pm-card">
+            <div className="pm-row pm-spread" style={{ padding: "14px 18px", borderBottom: "1px solid var(--pm-line2)" }}>
+              <h2 style={{ fontSize: 14 }}><Slash />Recent activity</h2>
+            </div>
+            {activity === undefined ? (
+              <p className="pm-muted" style={{ padding: 24 }}>Loading…</p>
+            ) : activity.length === 0 ? (
+              <p className="pm-muted" style={{ padding: 24 }}>Nothing yet. Your actions will show up here.</p>
+            ) : (
+              activity.map((a, i) => (
+                <div key={i} className="pm-row pm-spread" style={{ minHeight: 48, padding: "0 18px", borderTop: i ? "1px solid var(--pm-line2)" : undefined }}>
+                  <span><strong>{verb[a.kind]}</strong> <span className="num">{fmtMoney(a.amount, symbol)}</span></span>
+                  <span className="pm-small pm-muted">{ago(a.t)}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="pm-pad pm-sec" style={{ paddingTop: 0 }}>
         <div className="pm-row pm-spread">
           <h2><Slash />Your investments</h2>
           <Link href="/portfolio" className="pm-link">See portfolio</Link>
@@ -103,7 +163,8 @@ export default function Home() {
                       <span className="pm-small" style={{ color: "var(--pm-faint)" }}>{r.s.info.symbol}</span></span>
                     <span className="pm-small pm-muted">Currency protected{r.locked ? " · securing your loan" : ""}</span>
                   </div>
-                  <strong className="num" style={{ fontSize: 15 }}>{fmtMoney(r.value, symbol)}</strong>
+                  <Spark pts={pctSeries(hist[r.s.info.address.toLowerCase()] ?? [] as NavPoint[])} />
+                  <strong className="num" style={{ fontSize: 15, minWidth: 90, textAlign: "right" }}>{fmtMoney(r.value, symbol)}</strong>
                 </div>
               ))
           )}

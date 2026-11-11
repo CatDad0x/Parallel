@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { parseAbiItem } from "viem";
-import { deployment } from "./config";
+import { deployment, DEPLOY_BLOCK } from "./config";
 
 const liquidate = parseAbiItem(
   "event Liquidate(bytes32 indexed id, address indexed caller, address indexed borrower, uint256 repaidAssets, uint256 repaidShares, uint256 seizedAssets, uint256 badDebtAssets, uint256 badDebtShares)",
@@ -36,7 +36,7 @@ export function useLiquidation() {
     let dead = false;
     (async () => {
       const latest = await client.getBlockNumber();
-      const start = latest > 60_000n ? latest - 60_000n : 0n;
+      const start = (latest > 60_000n ? latest - 60_000n : 0n) > DEPLOY_BLOCK ? (latest > 60_000n ? latest - 60_000n : 0n) : DEPLOY_BLOCK;
       // Newest first. If an RPC refuses a range (a cap, or a local fork crossing its fork point), split it and try each half.
       const scan = async (from: bigint, to: bigint): Promise<Liquidation | undefined> => {
         try {

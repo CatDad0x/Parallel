@@ -15,3 +15,6 @@ export const KEEPER_URL = process.env.NEXT_PUBLIC_KEEPER_URL ?? "";
 export const IS_LOCAL = CHAIN_ID === 31337;
 /** Local test accounts: always on for the local chain, and opt-in (rehearsals on a fork) with NEXT_PUBLIC_MOCK_WALLET=1. */
 export const USE_MOCK_WALLET = IS_LOCAL || process.env.NEXT_PUBLIC_MOCK_WALLET === "1";
+
+/** First block of the deployment: event scans start here (set for fresh deployments so history scans stay short). */
+export const DEPLOY_BLOCK = BigInt(process.env.NEXT_PUBLIC_DEPLOY_BLOCK ?? "0");
