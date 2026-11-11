@@ -111,7 +111,7 @@ export default function InvestPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "16px 28px", padding: "28px 0 20px" }}>
+      <div className="page-top" style={{ justifyContent: "flex-start", gap: "12px 28px" }}>
         <div role="tablist" aria-label="Choose an investment" className="currency-seg" style={{ flex: "none" }}>
           {PRODUCTS.map((p) => (
             <button
@@ -145,7 +145,7 @@ export default function InvestPage() {
 
       <div className="split">
         <div className="main">
-          <div style={{ position: "relative", padding: "20px 24px 12px 32px", borderBottom: "1px solid var(--line)" }}>
+          <div style={{ position: "relative", padding: "16px 18px 10px", borderBottom: "1px solid var(--line)" }}>
             {chart ? (
               <svg role="img" aria-label={`${product.name} share price history`} viewBox="0 0 600 220" preserveAspectRatio="none" style={{ display: "block", width: "100%", height: 240 }}>
                 {[55, 110, 165].map((y) => <line key={y} x1="0" y1={y} x2="600" y2={y} stroke="var(--line-2)" strokeDasharray="3 4" />)}
@@ -159,7 +159,7 @@ export default function InvestPage() {
             )}
           </div>
 
-          <section aria-label="What currency protection does" style={{ display: "grid", gap: 14, padding: "22px 32px 28px" }}>
+          <section aria-label="What currency protection does" style={{ display: "grid", gap: 14, padding: "16px 18px 20px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
               <span className="section-title" style={{ fontSize: 14 }}>
                 <Mark />
@@ -170,14 +170,14 @@ export default function InvestPage() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", border: "1px solid var(--line)", borderRadius: "var(--radius-s)", overflow: "hidden" }}>
               <div style={{ display: "grid", gap: 6, padding: "16px 18px", borderRight: "1px solid var(--line)", background: on ? "transparent" : "var(--surface)" }}>
                 <span className="small muted">Without protection</span>
-                <span style={{ fontWeight: 600, fontSize: 34, letterSpacing: "-0.04em", color: "var(--red)" }}>{money(amt / 1.1, sym, 0)}</span>
+                <span style={{ fontWeight: 600, fontSize: 28, letterSpacing: "-0.04em", color: "var(--red)" }}>{money(amt / 1.1, sym, 0)}</span>
               </div>
               <div style={{ display: "grid", gap: 6, padding: "16px 18px", background: on ? "var(--surface)" : "transparent", boxShadow: on ? "inset 0 -3px 0 var(--accent)" : undefined }}>
                 <span className="small" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   With protection
                   {on && <span style={{ padding: "1px 7px", borderRadius: 4, background: "var(--accent-soft)", color: "var(--accent-text)", fontSize: 11, fontWeight: 600 }}>Your pick</span>}
                 </span>
-                <span style={{ fontWeight: 600, fontSize: 34, letterSpacing: "-0.04em", color: "var(--accent-text)" }}>{money(amt, sym, 0)}</span>
+                <span style={{ fontWeight: 600, fontSize: 28, letterSpacing: "-0.04em", color: "var(--accent-text)" }}>{money(amt, sym, 0)}</span>
               </div>
             </div>
             <span className="small muted">Protection also gives up gains if the {short} falls. Share prices can still fall either way.</span>

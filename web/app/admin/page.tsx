@@ -93,21 +93,22 @@ export default function Admin() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "grid", gap: 6, padding: "32px 0 24px" }}>
+      <div className="page-top"><div style={{ display: "grid", gap: 4 }}>
         <h1>Advanced</h1>
         <p className="muted">For partner teams reviewing the demo. Everyday users never need this page.</p>
         {address && isAdmin === false && (
           <p className="notice">This wallet isn&rsquo;t the demo admin ({short(deployment.admin)}), so the demo controls will be rejected.</p>
         )}
+        </div>
       </div>
 
-      <section aria-labelledby="fx-h" style={{ display: "grid", gap: 14, padding: "24px 0", borderTop: "1px solid var(--line)" }}>
+      <section aria-labelledby="fx-h" className="pnl" style={{ display: "grid", gap: 14, padding: "16px", marginBottom: 8 }}>
         <h2 id="fx-h" className="section-title"><Mark />Currency explorer</h2>
         <Simulator compact />
       </section>
 
-      <section aria-labelledby="ctl-h" style={{ display: "flex", flexWrap: "wrap", margin: "0 -32px", borderTop: "1px solid var(--line)" }}>
-        <div style={{ flex: "2 1 460px", minWidth: 0, display: "grid", gap: 18, alignContent: "start", padding: "24px 32px" }}>
+      <section aria-labelledby="ctl-h" className="pnl" style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 8 }}>
+        <div style={{ flex: "2 1 460px", minWidth: 0, display: "grid", gap: 18, alignContent: "start", padding: "16px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <h2 id="ctl-h" className="section-title"><Mark />Demo controls</h2>
             <span className="tag" style={{ background: "var(--amber-soft)", color: "#6b3d12" }}>Admin · affects everyone</span>
@@ -157,7 +158,7 @@ export default function Admin() {
           <p className="small" style={{ color: "var(--faint)" }}>The keeper liquidates unhealthy loans within about 20 seconds of a shock, and does the vault operations automatically.</p>
         </div>
 
-        <div style={{ flex: "1 1 280px", minWidth: 0, display: "grid", gap: 16, alignContent: "start", padding: "24px 32px", borderLeft: "1px solid var(--line)", background: "var(--surface)" }}>
+        <div style={{ flex: "1 1 280px", minWidth: 0, display: "grid", gap: 16, alignContent: "start", padding: "16px", borderLeft: "1px solid var(--line)", background: "var(--surface)" }}>
           <div style={{ display: "grid", gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700 }}>Activity</span>
             {log.length === 0 ? (
@@ -196,8 +197,8 @@ export default function Admin() {
         </div>
       </section>
 
-      <section style={{ display: "flex", flexWrap: "wrap", margin: "0 -32px", borderTop: "1px solid var(--line)" }}>
-        <div style={{ flex: "2 1 460px", minWidth: 0, display: "grid", gap: 12, alignContent: "start", padding: "24px 32px 40px" }}>
+      <section className="pnl" style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 8 }}>
+        <div style={{ flex: "2 1 460px", minWidth: 0, display: "grid", gap: 12, alignContent: "start", padding: "16px" }}>
           <h2 className="section-title"><Mark />How this demo works</h2>
           <ul className="small muted" style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8, lineHeight: 1.55 }}>
             <li>All tokens are mock tokens on Base Sepolia. There is no real money.</li>
@@ -219,7 +220,7 @@ export default function Admin() {
             ))}
           </div>
         </div>
-        <div style={{ flex: "1 1 280px", minWidth: 0, display: "grid", gap: 8, alignContent: "start", padding: "24px 32px 40px", borderLeft: "1px solid var(--line)" }}>
+        <div style={{ flex: "1 1 280px", minWidth: 0, display: "grid", gap: 8, alignContent: "start", padding: "16px", borderLeft: "1px solid var(--line)" }}>
           <span style={{ fontSize: 13, fontWeight: 700 }}>Contracts</span>
           {contracts.map(([n, a]) => (
             <div key={a} className="small" style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>

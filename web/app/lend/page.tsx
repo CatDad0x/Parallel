@@ -65,8 +65,8 @@ export default function Earn() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16, padding: "32px 0 24px" }}>
-        <div style={{ display: "grid", gap: 6 }}>
+      <div className="page-top">
+        <div style={{ display: "grid", gap: 4 }}>
           <h1>Earn</h1>
           <p className="muted">Lend your {NAMES[currency]} to people borrowing against their investments.</p>
         </div>
@@ -80,16 +80,16 @@ export default function Earn() {
       <div className="split">
         <div className="main">
           {totalLent > 0 && (
-            <section aria-label="Your lending" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 16, padding: "24px 32px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
+            <section aria-label="Your lending" style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "flex-end", gap: 16, padding: "16px 18px", borderBottom: "1px solid var(--line)" }}>
               <div style={{ display: "grid", gap: 6 }}>
                 <span className="section-title" style={{ fontSize: 14 }}><Mark />You&rsquo;re lending</span>
-                <strong style={{ fontWeight: 600, fontSize: 44, letterSpacing: "-0.05em", lineHeight: 1, fontFeatureSettings: '"tnum" 1' }}>{money(totalLent, sym)}</strong>
+                <strong style={{ fontWeight: 600, fontSize: 32, letterSpacing: "-0.05em", lineHeight: 1, fontFeatureSettings: '"tnum" 1' }}>{money(totalLent, sym)}</strong>
                 <span className="small muted">Interest adds up every second and is included above.</span>
               </div>
             </section>
           )}
 
-          <section aria-labelledby="opt-h" style={{ display: "grid", gap: 12, padding: "24px 32px" }}>
+          <section aria-labelledby="opt-h" style={{ display: "grid", gap: 12, padding: "16px 18px" }}>
             <h2 id="opt-h" className="section-title" style={{ fontSize: 14 }}><Mark />Choose how to lend</h2>
             <div role="radiogroup" aria-labelledby="opt-h" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
               {states.map((s, i) => {
@@ -105,7 +105,7 @@ export default function Earn() {
                   >
                     <span style={{ fontSize: 13, color: "var(--muted)" }}>Lent against</span>
                     <strong style={{ fontSize: 17 }}>{n.title}</strong>
-                    <span style={{ fontWeight: 600, fontSize: 34, letterSpacing: "-0.05em", lineHeight: 1, color: "var(--accent-text)" }}>{pct(s.supplyApr * 100, 1)}</span>
+                    <span style={{ fontWeight: 650, fontSize: 28, letterSpacing: "-0.04em", lineHeight: 1, color: "var(--accent-text)" }}>{pct(s.supplyApr * 100, 1)}</span>
                     <span className="small muted">a year, variable · {pct(s.utilisation * 100, 0)} lent out</span>
                     {s.user.supplyAssets > 0 && <span className="small" style={{ fontWeight: 600 }}>You lend {money(s.user.supplyAssets, sym)}</span>}
                   </button>

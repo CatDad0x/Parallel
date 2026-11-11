@@ -19,6 +19,7 @@ export function signedMoney(value: number, symbol: string, digits = 2) {
 
 export function pct(value: number, digits = 1, signed = false) {
   if (!Number.isFinite(value)) return "—";
+  if (Math.abs(value) < 0.5 / 10 ** digits) value = 0; // no "−0.0%"
   const s = `${Math.abs(value).toFixed(digits)}%`;
   if (value < 0) return `−${s}`;
   return signed && value > 0 ? `+${s}` : s;

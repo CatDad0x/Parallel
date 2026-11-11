@@ -80,15 +80,15 @@ export default function Borrow() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "grid", gap: 6, padding: "32px 0 24px" }}>
+      <div className="page-top"><div style={{ display: "grid", gap: 4 }}>
         <h1>Borrow</h1>
         <p className="muted">Get cash without selling. Your investment stays invested and secures the loan.</p>
-      </div>
+      </div></div>
 
       <div className="split">
         <div className="main">
           {hasLoan && st && (
-            <section aria-label="Your loan" style={{ display: "grid", gap: 14, padding: "24px 32px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
+            <section aria-label="Your loan" style={{ display: "grid", gap: 14, padding: "16px 18px", borderBottom: "1px solid var(--line)", background: "var(--surface)" }}>
               <h2 className="section-title" style={{ fontSize: 14 }}><Mark />Your loan</h2>
               <div className="cells" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
                 <div><span className="label">Borrowed</span><strong style={{ fontSize: 22 }}>{money(debt, sym)}</strong></div>
@@ -99,7 +99,7 @@ export default function Borrow() {
             </section>
           )}
 
-          <section aria-labelledby="pick-h" style={{ display: "grid", gap: 12, padding: "24px 32px" }}>
+          <section aria-labelledby="pick-h" style={{ display: "grid", gap: 12, padding: "16px 18px" }}>
             <h2 id="pick-h" className="section-title" style={{ fontSize: 14 }}><Mark />Borrow against</h2>
             <div role="radiogroup" aria-labelledby="pick-h" style={{ border: "1px solid var(--line)", borderRadius: "var(--radius-m)", background: "var(--surface)", overflow: "hidden" }}>
               {states.map((s, i) => {
@@ -132,7 +132,7 @@ export default function Borrow() {
             )}
           </section>
 
-          <p className="small" style={{ padding: "0 32px 28px", color: "var(--faint)", lineHeight: 1.5 }}>
+          <p className="small" style={{ padding: "0 18px 18px", color: "var(--faint)", lineHeight: 1.5 }}>
             Limits are illustrative. The opening limit, and any pause on new borrowing while US markets are closed, are set by
             this app, not by the underlying lending protocol (Morpho Blue).
           </p>
@@ -142,7 +142,7 @@ export default function Borrow() {
           <span className="section-title" style={{ fontSize: 16 }}><Mark />How much?</span>
           <div style={{ display: "grid", gap: 4 }}>
             <label htmlFor="borrow-amt" className="small muted">You borrow</label>
-            <strong style={{ fontWeight: 600, fontSize: 48, letterSpacing: "-0.05em", lineHeight: 1, fontFeatureSettings: '"tnum" 1' }}>{money(amount, sym, 0)}</strong>
+            <strong style={{ fontWeight: 650, fontSize: 34, letterSpacing: "-0.04em", lineHeight: 1, fontFeatureSettings: '"tnum" 1' }}>{money(amount, sym, 0)}</strong>
           </div>
           <div style={{ display: "grid", gap: 4 }}>
             <input

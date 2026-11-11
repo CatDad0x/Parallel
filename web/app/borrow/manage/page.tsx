@@ -121,27 +121,27 @@ function ManageLoan() {
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
       {level > 0 && debt > 0 && (
-        <div role="alert" style={{ margin: "0 -32px", padding: "14px 32px", fontSize: 14, lineHeight: 1.5, ...(level === 2 ? { background: "var(--red-soft)", color: "#7a2a20", borderBottom: "1px solid #f0cfca" } : { background: "var(--amber-soft)", color: "#6b3d12", borderBottom: "1px solid #eed9bc" }) }}>
+        <div role="alert" style={{ margin: "0 0 8px", padding: "12px 16px", borderRadius: 6, fontSize: 13, lineHeight: 1.5, ...(level === 2 ? { background: "var(--red-soft)", color: "#7a2a20", borderBottom: "1px solid #f0cfca" } : { background: "var(--amber-soft)", color: "#6b3d12", borderBottom: "1px solid #eed9bc" }) }}>
           <strong>{level === 2 ? "Your loan is near the limit." : "Your loan is getting close to the limit."}</strong>{" "}
           {level === 2 ? "If prices fall a little more, some of your investment will be sold to repay part of the loan. Repay some or add more now." : "Repay a little or add more to keep it comfortable."}
         </div>
       )}
 
-      <div style={{ display: "grid", gap: 6, padding: "32px 0 24px" }}>
-        <Link href="/borrow" className="small muted" style={{ textDecoration: "none", fontWeight: 600 }}>← Borrow</Link>
+      <div className="page-top"><div style={{ display: "grid", gap: 4 }}>
+        <Link href="/borrow" className="back">← Borrow</Link>
         <h1>Your loan</h1>
         <p className="muted">Repay any time. Interest adds up every second until you do.</p>
-      </div>
+      </div></div>
 
       <div className="split">
         <div className="main">
           <section className="cells" aria-label="Loan summary" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", border: 0, borderBottom: "1px solid var(--line)", borderRadius: 0 }}>
-            <div style={{ padding: "20px 32px" }}><span className="label">You owe</span><strong style={{ fontSize: 26 }}>{money(debt, sym)}</strong></div>
-            <div style={{ padding: "20px 32px" }}><span className="label">Secured by</span><strong style={{ fontSize: 26 }}>{money(collValue, sym, 0)}</strong><span className="small" style={{ color: "var(--faint)" }}>{name.title}</span></div>
-            <div style={{ padding: "20px 32px" }}><span className="label">Interest</span><strong style={{ fontSize: 26 }}>{st ? pct(st.borrowApr * 100, 1) : "—"}</strong><span className="small" style={{ color: "var(--faint)" }}>a year, variable</span></div>
+            <div style={{ padding: "14px 18px" }}><span className="label">You owe</span><strong style={{ fontSize: 22 }}>{money(debt, sym)}</strong></div>
+            <div style={{ padding: "14px 18px" }}><span className="label">Secured by</span><strong style={{ fontSize: 22 }}>{money(collValue, sym, 0)}</strong><span className="small" style={{ color: "var(--faint)" }}>{name.title}</span></div>
+            <div style={{ padding: "14px 18px" }}><span className="label">Interest</span><strong style={{ fontSize: 22 }}>{st ? pct(st.borrowApr * 100, 1) : "—"}</strong><span className="small" style={{ color: "var(--faint)" }}>a year, variable</span></div>
           </section>
 
-          <section aria-labelledby="safety-h" style={{ display: "grid", gap: 14, padding: "26px 32px" }}>
+          <section aria-labelledby="safety-h" style={{ display: "grid", gap: 14, padding: "16px 18px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <h2 id="safety-h" className="section-title" style={{ fontSize: 14 }}><Mark />Loan safety</h2>
               {debt > 0 ? <SafetyLabel hf={hf} /> : <strong className="pos">No loan</strong>}

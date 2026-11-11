@@ -86,15 +86,15 @@ function Sell() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <div style={{ display: "grid", gap: 6, padding: "32px 0 24px" }}>
-        <Link href="/portfolio" className="small muted" style={{ textDecoration: "none", fontWeight: 600 }}>← Portfolio</Link>
+      <div className="page-top"><div style={{ display: "grid", gap: 4 }}>
+        <Link href="/portfolio" className="back">← Portfolio</Link>
         <h1>Sell</h1>
         <p className="muted">Turn your investment back into {cur.code === "AUD" ? "Australian dollars" : cur.code === "EUR" ? "euros" : "rupees"}.</p>
-      </div>
+      </div></div>
 
       <div className="split">
         <div className="main">
-          <section aria-labelledby="pick-h" style={{ display: "grid", gap: 12, padding: "24px 32px" }}>
+          <section aria-labelledby="pick-h" style={{ display: "grid", gap: 12, padding: "16px 18px" }}>
             <h2 id="pick-h" className="section-title" style={{ fontSize: 14 }}><Mark />What to sell</h2>
             {pos.rows.length === 0 ? (
               <div className="panel" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -130,7 +130,7 @@ function Sell() {
               <span className="small muted">{num(locked, 18).toLocaleString("en-AU", { maximumFractionDigits: 4 })} shares are securing a loan and can&rsquo;t be sold until it&rsquo;s repaid.</span>
             )}
           </section>
-          <section style={{ display: "grid", gap: 10, padding: "0 32px 28px" }}>
+          <section style={{ display: "grid", gap: 10, padding: "0 18px 18px" }}>
             <h2 className="section-title" style={{ fontSize: 14 }}><Mark />How the price works</h2>
             <p className="small muted" style={{ lineHeight: 1.6, maxWidth: "60ch" }}>
               You sell at today&rsquo;s price, minus the trading cost. We compare what you get with the full value of your

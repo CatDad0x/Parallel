@@ -119,22 +119,30 @@ export interface NavPoint {
 
 /** NAV history from onchain NavSnapshot events (last ~40k blocks, chunked for public RPC limits). */
 export function useNavHistory(vault?: Address) {
+  const all = useNavHistories(vault ? [vault] : []);
+  return vault ? all[vault.toLowerCase()] ?? [] : [];
+}
+
+/** NAV histories for several vaults in one scan, keyed by lower-case vault address. */
+export function useNavHistories(vaults: Address[]) {
   const client = usePublicClient();
-  const [points, setPoints] = useState<NavPoint[]>([]);
+  const key = vaults.map((v) => v.toLowerCase()).sort().join(",");
+  const [out, setOut] = useState<Record<string, NavPoint[]>>({});
   useEffect(() => {
-    if (!client || !vault) return;
+    if (!client || !key) return;
+    const list = key.split(",") as Address[];
     let cancelled = false;
     (async () => {
       const latest = await client.getBlockNumber();
       const span = 40_000n;
       const start = latest > span ? latest - span : 0n;
-      const all: NavPoint[] = [];
+      const acc: Record<string, NavPoint[]> = {};
       for (let from = start; from <= latest; from += 9_000n) {
         const to = from + 8_999n > latest ? latest : from + 8_999n;
-        const logs = await client.getLogs({ address: vault, event: navEvent, fromBlock: from, toBlock: to });
+        const logs = await client.getLogs({ address: list, event: navEvent, fromBlock: from, toBlock: to });
         for (const l of logs) {
           const a = l.args;
-          all.push({
+          (acc[l.address.toLowerCase()] ??= []).push({
             t: Number(a.timestamp) * 1000,
             navPerShare: Number(a.navPerShare) / 1e6,
             usdPerLocal: Number(a.usdPerLocal) / 1e18,
@@ -143,13 +151,13 @@ export function useNavHistory(vault?: Address) {
           });
         }
       }
-      if (!cancelled) setPoints(all);
+      if (!cancelled) setOut(acc);
     })().catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [client, vault]);
-  return points;
+  }, [client, key]);
+  return out;
 }
 
 export interface Step {
