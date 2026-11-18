@@ -77,3 +77,9 @@ Never ask him to paste a private key into chat. Keys go in `contracts/.env`, `ke
 - Deployed to **Base Sepolia (84532)** from one test wallet `0x4E643f72f8DE6744c0F64D0095B7B108d7295951` (admin, keeper and relayer). 177 transactions, all succeeded, cost about 0.0003 ETH. Blocks 57248012 to 57248916. Addresses in `packages/shared/deployments/84532.json`. Simulated prices (DemoPyth), own Morpho copy, mock gTrade. Not verified on Basescan (no API key).
 - **Deploy block for the keeper (`DEPLOY_BLOCK`) and the site (`NEXT_PUBLIC_DEPLOY_BLOCK`): 57248012.**
 - Still to do: host the keeper (Railway or Render) and the website (Vercel) with the wallet's key in the hosting settings only.
+
+## 18 Nov 2026: hosted
+- **Website:** https://parallel-demo-lake.vercel.app (Vercel project `parallel-demo`, team mclb-dao, root directory `web`, auto-deploys on push to `main`). Env: NEXT_PUBLIC_CHAIN_ID=84532, NEXT_PUBLIC_RPC_URL, NEXT_PUBLIC_DEPLOY_BLOCK=57248012, NEXT_PUBLIC_KEEPER_URL, RELAYER_PRIVATE_KEY.
+- **Keeper:** Railway project `parallel-keeper`, service `keeper`, health at https://keeper-production-d1516c00.up.railway.app . Started with the root `start` script. Env: CHAIN_ID, RPC_URL, DEPLOY_BLOCK, HEALTH_PORT=8080, KEEPER_PRIVATE_KEY.
+- Both hold the single testnet wallet key (0x4E64...5951). Testnet only, no real funds.
+- Sign-in on the public site is the Coinbase smart wallet (no Privy app id set yet).
