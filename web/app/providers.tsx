@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider, createConfig } from "wagmi";
 import { injected, coinbaseWallet, mock } from "wagmi/connectors";
-import { PrivyProvider } from "@privy-io/react-auth";
+import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 import { WagmiProvider as PrivyWagmiProvider, createConfig as createPrivyConfig } from "@privy-io/wagmi";
 import { chain, transports, PRIVY_APP_ID, USE_MOCK_WALLET } from "@/lib/config";
 import { CurrencyProvider } from "@/lib/currency";
@@ -14,6 +14,21 @@ const LOCAL_ACCOUNTS = [
   "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
   "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
 ] as const;
+
+/** Signed in with email but no wallet yet? Create one (the dashboard auto-create setting may be off). */
+function EnsureWallet() {
+  const { ready, authenticated, user, createWallet } = usePrivy();
+  const { wallets } = useWallets();
+  const tried = useRef(false);
+  useEffect(() => {
+    if (!ready || !authenticated || tried.current) return;
+    const hasWallet = wallets.length > 0 || user?.linkedAccounts?.some((a) => a.type === "wallet");
+    if (hasWallet) return;
+    tried.current = true;
+    createWallet().catch((e) => console.error("createWallet failed", e));
+  }, [ready, authenticated, user, wallets, createWallet]);
+  return null;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({ defaultOptions: { queries: { refetchInterval: 8_000 } } }));
@@ -33,7 +48,10 @@ export function Providers({ children }: { children: ReactNode }) {
       >
         <QueryClientProvider client={queryClient}>
           <PrivyWagmiProvider config={config}>
-            <CurrencyProvider>{children}</CurrencyProvider>
+            <CurrencyProvider>
+              <EnsureWallet />
+              {children}
+            </CurrencyProvider>
           </PrivyWagmiProvider>
         </QueryClientProvider>
       </PrivyProvider>
